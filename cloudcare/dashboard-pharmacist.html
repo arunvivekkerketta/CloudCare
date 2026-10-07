@@ -7,6 +7,7 @@
 <title>Pharmacist Dashboard — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
@@ -66,7 +67,7 @@
 
       <section class="panel-view" id="panel-inventory">
         <div class="panel">
-          <div class="panel-head"><h3>Medicine inventory</h3><input type="search" placeholder="Search inventory…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
+          <div class="panel-head"><h3>Medicine inventory</h3><input type="search" placeholder="Search inventory…" aria-label="Filter inventory by medicine" data-filter-target="#invTable" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
           <div class="panel-body" style="padding-top:0;">
             <div class="table-scroll">
             <table><thead><tr><th>Medicine</th><th>Stock</th><th>Expiry</th><th>Status</th></tr></thead>
@@ -96,9 +97,9 @@
             <p data-profile-role>Pharmacist</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
-            <div class="field"><label>Counter</label><input type="text" placeholder="e.g. Counter 2"></div>
+            <div class="field"><label for="profName">Full name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
+            <div class="field"><label for="profCounter">Counter</label><input id="profCounter" type="text" placeholder="Managed by the admin" disabled><span class="field-hint">Coming soon — counter assignment has no endpoint yet.</span></div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
               <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
@@ -123,13 +124,14 @@
 <script>
 /* gate C6: chart isolated + guarded — a blocked CDN no-ops this block. */
 if(window.Chart){ try{
-  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-  new Chart(document.getElementById('stockChart'), {
+  const pal = window.ccChartPalette ? window.ccChartPalette() : { text: '#5b7370' };
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = pal.text;
+  window.ccRegisterChart(new Chart(document.getElementById('stockChart'), {
     type:'bar',
     data:{ labels:['Insulin','Paracetamol','Amoxicillin','Metformin','Amlodipine','Atorvastatin'],
       datasets:[{ label:'Units in stock', data:[180,640,410,520,88,340], backgroundColor:(ctx)=>ctx.raw<150?'#ff6f59':'#2fb8a4', borderRadius:6 }]},
     options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
-  });
+  }));
 }catch(e){} }
 
 window.ccLoadPharmacistDashboard = async function(user){

@@ -7,6 +7,7 @@
 <title>Patient Dashboard — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
@@ -255,11 +256,11 @@
             <p data-profile-role>Patient</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
+            <div class="field"><label for="profName">Full name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
             <div class="cc-field-row">
-              <div class="field"><label>Phone</label><input type="text" placeholder="Add phone number"></div>
-              <div class="field"><label>Emergency contact</label><input type="text" placeholder="Add emergency contact"></div>
+              <div class="field"><label for="profPhone">Phone</label><input id="profPhone" type="text" placeholder="Not saved yet" disabled><span class="field-hint">Coming soon — the account API has no phone field, so this input is disabled rather than silently ignored.</span></div>
+              <div class="field"><label for="profEmergency">Emergency contact</label><input id="profEmergency" type="text" placeholder="Not saved yet" disabled><span class="field-hint">Coming soon — no endpoint stores this yet.</span></div>
             </div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
@@ -299,12 +300,13 @@
    If the CDN is blocked, `window.Chart` is undefined and this block no-ops.
    Booking, tables and API logic live in the next block, so they survive. */
 if(window.Chart){ try{
-  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-  new Chart(document.getElementById('vitalsChart'), {
+  const pal = window.ccChartPalette ? window.ccChartPalette() : { text: '#5b7370' };
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = pal.text;
+  window.ccRegisterChart(new Chart(document.getElementById('vitalsChart'), {
     type:'line',
     data:{ labels:['Jan','Mar','May','Jul','Aug'], datasets:[{ label:'HbA1c %', data:[6.9,7.1,7.3,7.6,7.8], borderColor:'#ff6f59', backgroundColor:'rgba(255,111,89,.1)', fill:true, tension:.4 }]},
     options:{ plugins:{legend:{display:false}}, scales:{y:{suggestedMin:6,suggestedMax:9}}}
-  });
+  }));
 }catch(e){ /* chart is cosmetic — never break the page over it */ } }
 </script>
 <script>
@@ -377,11 +379,11 @@ window.ccInitPatientBooking = function(user){
     } else {
       metaBox.style.display = 'none';
     }
-    renderSlots([]);
+    showChecking();
   });
 
   dateInput.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  dateInput.addEventListener('change', () => renderSlots([]));
+  dateInput.addEventListener('change', showChecking); /* gate S12: no "No open slots" flash */
 
   function slotLabel(s){
     const start = new Date(s.start);
@@ -390,13 +392,28 @@ window.ccInitPatientBooking = function(user){
     return { start:s.start, label: `${s.label} IST`, short: fmt(start), shift: s.shift };
   }
 
+  /* gate S12: "Checking open slots…" immediately — never a premature
+     "No open slots" flash while the request is still in flight. */
+  function showChecking(){
+    selectedSlot = null;
+    suggestBox.style.display = 'none';
+    if(!doctorSel.value || !dateInput.value){ renderSlots([]); return; }
+    slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Checking open slots…</span>';
+  }
+
+  /* gate S12: monotonic request counter — a slow, stale response can never
+     overwrite the grid built from a newer doctor/date selection. */
+  let slotRequestId = 0;
   async function loadSlots(){
     if(!doctorSel.value || !dateInput.value){ renderSlots([]); return; }
+    const requestId = ++slotRequestId;
     slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Checking open slots…</span>';
     try {
       const slots = await ccApi(`/api/doctors/${doctorSel.value}/slots?date=${dateInput.value}`);
+      if(requestId !== slotRequestId) return; // superseded
       renderSlots(slots);
     } catch(err){
+      if(requestId !== slotRequestId) return; // superseded
       slotGrid.innerHTML = `<span style="font-size:.85rem;color:#c9432c;">${ccEscape(err.message || 'Could not load slots.')}</span>`;
     }
   }
@@ -414,19 +431,24 @@ window.ccInitPatientBooking = function(user){
     }
     slotGrid.innerHTML = slots.map(s => {
       const l = slotLabel(s);
-      return `<button type="button" class="slot-btn" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(s.label)}<small>${ccEscape(s.shift)} shift</small></button>`;
+      return `<button type="button" class="slot-btn" aria-pressed="false" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(s.label)}<small>${ccEscape(s.shift)} shift</small></button>`;
     }).join('');
     slotGrid.querySelectorAll('.slot-btn').forEach(btn => btn.addEventListener('click', () => {
-      slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => b.classList.remove('selected'));
+      slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true'); /* gate S12 */
       selectedSlot = { start: btn.dataset.start, label: btn.dataset.label };
     }));
   }
 
-  function toClinicIso(dateStr, hhmmLabel){
-    /* "2026-10-20" + "09:00" -> ISO with IST offset (+05:30), clinic-local. */
+  /* gates S13 + booking share ONE clinic-time conversion helper: "YYYY-MM-DD"
+     + "HH:MM" -> ISO instant with the clinic's +05:30 offset. */
+  window.toClinicIso = function(dateStr, hhmmLabel){
     return `${dateStr}T${hhmmLabel}:00+05:30`;
-  }
+  };
 
   submitBtn.form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -441,7 +463,7 @@ window.ccInitPatientBooking = function(user){
         method: 'POST',
         body: JSON.stringify({
           doctor_id: doctorSel.value,
-          scheduled_at: toClinicIso(dateInput.value, selectedSlot.label),
+          scheduled_at: window.toClinicIso(dateInput.value, selectedSlot.label),
           department: specialtySel.value || (doctors.find(d => d.id === doctorSel.value)?.department) || 'General consultation',
           mode: document.getElementById('bookMode').value,
           reason: document.getElementById('bookReason').value.trim(),
@@ -482,9 +504,14 @@ window.ccInitPatientBooking = function(user){
       if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
       if(window.ccMyAppointmentsLoad) ccMyAppointmentsLoad();
     } catch(err){
-      /* 409 slot-taken: ccErrorMessage already extracts detail.message;
-         422 (night/past/shift/leave) arrives as a plain message too. */
-      showSuggestions(err.message);
+      /* gate S12: the inline suggestion box is for availability problems only
+         (409 slot taken + 400 booking-rule rejections). Everything else —
+         403, 422, 500, network — is a plain toast. */
+      if(err.status === 409 || err.status === 400){
+        showSuggestions(err.message);
+      } else {
+        ccToast(err.message || 'Could not request the appointment.');
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Request appointment';
@@ -510,7 +537,7 @@ window.ccInitPatientBooking = function(user){
         }
         suggestBox.style.display = '';
         bindSuggestionChips();
-        suggestBox.scrollIntoView({ behavior:'smooth', block:'nearest' });
+        suggestBox.scrollIntoView({ behavior: window.ccScrollBehavior ? window.ccScrollBehavior() : 'smooth', block:'nearest' });
       })
       .catch(() => ccToast(message));
   }
@@ -540,7 +567,7 @@ window.ccInitPatientBooking = function(user){
         selectedSlot = { start: target.dataset.start, label: target.dataset.label };
         suggestBox.style.display = 'none';
         target.focus({ preventScroll: true });
-        target.scrollIntoView({ behavior:'smooth', block:'nearest' });
+        target.scrollIntoView({ behavior: window.ccScrollBehavior ? window.ccScrollBehavior() : 'smooth', block:'nearest' });
       });
     });
   }
@@ -629,16 +656,35 @@ window.ccMyAppointmentsLoad = async function(){
         `<button class="btn btn-sm btn-ghost" data-cancel="${a.id}">Cancel</button>` : '';
       return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td>${cancelBtn}</td></tr>`;
     }).join('');
-    tbody.querySelectorAll('button[data-cancel]').forEach(btn => btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      try {
-        await ccApi(`/api/appointments/${btn.dataset.cancel}`, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
-        ccToast('Appointment cancelled');
-        if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
-        ccMyAppointmentsLoad();
-        if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
-        if(window.ccLoadPatientDashboard) window.ccLoadPatientDashboard(JSON.parse(localStorage.getItem('cloudcare_session') || 'null'));
-      } catch(err){ ccToast(err.message || 'Could not cancel.'); btn.disabled = false; }
+    /* gate S3: cancelling frees a doctor's slot — confirm first, no one-click destroy */
+    tbody.querySelectorAll('button[data-cancel]').forEach(btn => btn.addEventListener('click', () => {
+      const row = btn.closest('tr');
+      const when = row ? row.children[0].textContent : 'this appointment';
+      const doc = row ? row.children[1].textContent : 'your doctor';
+      ccModalOpen(`
+        <div class="cc-modal-head">
+          <div><h3>Cancel this appointment?</h3><p>The slot is freed for other patients immediately.</p></div>
+          <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+        </div>
+        <div class="cc-modal-body">
+          <div class="cc-modal-summary">${ccEscape(when)}<br>${ccEscape(doc)}</div>
+        </div>
+        <div class="cc-modal-foot">
+          <button class="btn btn-ghost" data-modal-close>Keep appointment</button>
+          <button class="btn btn-danger" id="cancelYes">Yes, cancel it</button>
+        </div>`);
+      document.getElementById('cancelYes').addEventListener('click', async function(){
+        this.disabled = true;
+        try {
+          await ccApi(`/api/appointments/${btn.dataset.cancel}`, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
+          ccModalClose();
+          ccToast('Appointment cancelled');
+          if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
+          ccMyAppointmentsLoad();
+          if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
+          if(window.ccLoadPatientDashboard) window.ccLoadPatientDashboard(JSON.parse(localStorage.getItem('cloudcare_session') || 'null'));
+        } catch(err){ ccModalClose(); ccToast(err.message || 'Could not cancel.'); }
+      });
     }));
   } catch(err){ ccRenderState(tbody, 'error', err.message, 6); }
 };
@@ -854,21 +900,28 @@ function openRescheduleModal(){
     </div>
   `);
 
+  /* gate S13: same IST floor as the booking form — never offer yesterday */
+  const rsDateInput = document.getElementById('rsDate');
+  rsDateInput.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
   document.getElementById('rsConfirm').addEventListener('click', async () => {
     const form = document.getElementById('rescheduleForm');
     if(!form.reportValidity()) return;
-    const dateVal = document.getElementById('rsDate').value;
+    const dateVal = rsDateInput.value;
     const timeVal = document.getElementById('rsTime').value;
     const newMode = document.getElementById('rsMode').value;
     const btn = document.getElementById('rsConfirm');
     btn.disabled = true;
 
+    /* gate S13: reuse toClinicIso — +05:30 clinic time, same as booking,
+       instead of converting through the browser's own timezone. */
+    const clinicIso = window.toClinicIso(dateVal, timeVal);
     try {
       await ccApi(`/api/appointments/${apptId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ scheduled_at: new Date(dateVal + 'T' + timeVal).toISOString(), mode: newMode }),
+        body: JSON.stringify({ scheduled_at: clinicIso, mode: newMode }),
       });
-      const niceDate = new Date(dateVal + 'T' + timeVal).toLocaleString('en-IN', { weekday:'long', hour:'numeric', minute:'2-digit' });
+      const niceDate = new Date(clinicIso).toLocaleString('en-IN', { weekday:'long', hour:'numeric', minute:'2-digit' });
       card.dataset.when = niceDate;
       card.dataset.mode = newMode;
       card.querySelector('[data-appt-when]').textContent = `${niceDate} · ${newMode}`;
@@ -892,9 +945,7 @@ function openTelemedicineModal(){
     </div>
     <div class="cc-modal-body">
       <form id="teleForm">
-        <div class="field"><label for="teleDoctor">Doctor</label>
-          <select id="teleDoctor"><option>Dr. Aakash Verma — Cardiology</option><option>Dr. Meera Iyer — Orthopedics</option><option>Any available doctor</option></select>
-        </div>
+        <div class="field"><label for="teleDoctor">Doctor</label><select id="teleDoctor"><option value="">Loading doctors…</option></select></div>
         <div class="cc-field-row">
           <div class="field"><label for="teleDate">Preferred date</label><input id="teleDate" type="date" required></div>
           <div class="field"><label for="teleTime">Preferred time</label><input id="teleTime" type="time" required></div>
@@ -909,10 +960,25 @@ function openTelemedicineModal(){
     </div>
   `);
 
+  /* gate S21: doctors come from the API — the old hard-coded "Dr. Aakash
+     Verma / Dr. Meera Iyer" options are gone. */
+  const teleSel = document.getElementById('teleDoctor');
+  const teleDate = document.getElementById('teleDate');
+  teleDate.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  ccApi('/api/doctors').then(list => {
+    if(!list.length){ teleSel.innerHTML = '<option value="">No doctors available</option>'; return; }
+    teleSel.innerHTML = ['<option value="">Select a doctor…</option>']
+      .concat(list.map(d => {
+        const label = `${d.name} — ${d.department}${d.average_rating ? ` · ★ ${d.average_rating}` : ''}`;
+        return `<option value="${ccEscape(label)}">${ccEscape(label)}</option>`;
+      })).join('');
+  }).catch(() => { teleSel.innerHTML = '<option value="">Could not load doctors</option>'; });
+
   document.getElementById('teleConfirm').addEventListener('click', () => {
     const form = document.getElementById('teleForm');
     if(!form.reportValidity()) return;
     const doctor = document.getElementById('teleDoctor').value;
+    if(!doctor){ ccToast('Choose a doctor first.'); return; }
     const dateVal = document.getElementById('teleDate').value;
     const timeVal = document.getElementById('teleTime').value;
     const reason = document.getElementById('teleReason').value.trim();
@@ -947,19 +1013,20 @@ function openPaymentModal(billIndex){
   ccModalOpen(`
     <div class="cc-modal-head">
       <div><h3>Pay invoice ${ccEscape(invoiceId)}</h3><p>${ccEscape(bill.description || 'Consultation')}</p></div>
+      <span class="badge badge-slate">Demo, not saved</span>
       <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
     </div>
     <div class="cc-modal-body">
       <div class="cc-modal-summary">Amount due<br><strong style="font-size:1.3rem;">₹${amount}</strong></div>
       <form id="paymentForm">
-        <div class="field"><label for="payName">Name on card</label><input id="payName" type="text" placeholder="Simran Kaur" required></div>
-        <div class="field"><label for="payCard">Card number</label><input id="payCard" type="text" inputmode="numeric" maxlength="19" placeholder="4242 4242 4242 4242" required></div>
+        <div class="field"><label for="payName">Name on card</label><input id="payName" type="text" placeholder="Cardholder name" autocomplete="cc-name" required></div>
+        <div class="field"><label for="payCard">Card number</label><input id="payCard" type="text" inputmode="numeric" maxlength="19" placeholder="4242 4242 4242 4242" autocomplete="cc-number" required></div>
         <div class="cc-field-row">
-          <div class="field"><label for="payExpiry">Expiry</label><input id="payExpiry" type="text" placeholder="MM/YY" maxlength="5" required></div>
-          <div class="field"><label for="payCvv">CVV</label><input id="payCvv" type="text" inputmode="numeric" maxlength="4" placeholder="123" required></div>
+          <div class="field"><label for="payExpiry">Expiry</label><input id="payExpiry" type="text" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" required></div>
+          <div class="field"><label for="payCvv">CVV</label><input id="payCvv" type="text" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc" required></div>
         </div>
       </form>
-      <div class="cc-modal-note">🔒 Demo form only — no card data is stored or transmitted. This will call a real payment gateway once the backend is connected.</div>
+      <div class="cc-modal-note">🔒 Demo form only — no card data is stored or transmitted, and the invoice is NOT marked paid (nothing is saved; reload to confirm).</div>
     </div>
     <div class="cc-modal-foot">
       <button class="btn btn-ghost" data-modal-close>Cancel</button>
@@ -975,14 +1042,11 @@ function openPaymentModal(billIndex){
     btn.textContent = 'Processing…';
 
     ccFakeChargeCard().then(() => {
-      const row = document.getElementById('invRow-' + invoiceId);
-      if(row){
-        row.querySelector('[data-inv-status]').innerHTML = '<span class="badge badge-mint">Paid</span>';
-        row.querySelector('[data-inv-action]').innerHTML = '<span style="color:var(--slate-400);">—</span>';
-      }
-      if(window.ccBills && window.ccBills[billIndex]) window.ccBills[billIndex].status = 'Paid';
+      /* gate S21: the demo flow never flips the row to Paid on the client.
+         There is no payments endpoint, so claiming success would be a lie —
+         the invoice stays Pending until a real gateway is wired up. */
       ccModalClose();
-      ccToast('Payment successful — receipt sent to your email (demo)');
+      ccToast('Demo payment — nothing was saved. This invoice stays Pending.');
     });
   });
 }

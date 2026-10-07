@@ -7,6 +7,7 @@
 <title>Admin Console — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   .panel-view{display:none;} .panel-view.active{display:block;}
@@ -132,7 +133,7 @@
         <div class="panel reveal in">
           <div class="panel-head">
             <h3>Patient directory</h3>
-            <input type="search" placeholder="Search patients…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+            <input type="search" placeholder="Search patients…" aria-label="Filter patients by name, condition or doctor" data-filter-target="#patientTable" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
           </div>            <div class="panel-body" style="padding-top:0;">
               <div class="table-scroll">
               <table>
@@ -183,7 +184,7 @@
           <div class="panel reveal in" style="margin-bottom:24px;">
             <div class="panel-head">
               <h3>All accounts</h3>
-              <select id="accountRoleFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+              <select id="accountRoleFilter" aria-label="Filter accounts by role" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
                 <option value="">All roles</option>
                 <option value="patient">Patients</option>
                 <option value="doctor">Doctors</option>
@@ -237,7 +238,7 @@
         <div class="panel reveal in">
           <div class="panel-head">
             <h3>Clinic appointments</h3>
-            <select id="apptStatusFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+            <select id="apptStatusFilter" aria-label="Filter appointments by status" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
               <option value="">All statuses</option>
               <option value="Requested">Requested</option>
               <option value="Confirmed">Confirmed</option>
@@ -388,10 +389,10 @@
             <p data-profile-role>Administrator</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Admin email</label><input type="email" data-profile-email-input></div>
-            <div class="field"><label>Hospital name</label><input type="text" value="CloudCare General Hospital"></div>
-            <div class="field"><label>Time zone</label><select><option>Asia/Kolkata (IST)</option></select></div>
+            <div class="field"><label for="profName">Full name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Admin email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
+            <div class="field"><label for="profHospital">Hospital name</label><input id="profHospital" type="text" value="CloudCare General Hospital" disabled><span class="field-hint">Coming soon — the account API only stores name and email.</span></div>
+            <div class="field"><label for="profTimezone">Time zone</label><select id="profTimezone" disabled><option>Asia/Kolkata (IST)</option></select><span class="field-hint">The clinic runs on IST; there is no endpoint to change it yet.</span></div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
               <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>

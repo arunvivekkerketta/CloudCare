@@ -23,7 +23,12 @@
   --violet-100:#ece6ff;
   --slate-900:#16211f;
   --slate-500:#5b7370;
-  --slate-400:#7f938f;
+  /* gate S8: darkened for light mode — 4.7:1 on the canvas (was 3.1:1) */
+  --slate-400:#5f7672;
+  /* gate S8: accent button text = dark ink on coral (4.8:1, was white 2.9:1) */
+  --ink-on-accent:#0a2f2b;
+  /* gate S8: star glyphs need >= 3:1; gold-500 is only 2.1:1 on white */
+  --gold-star:#b57c05;
   --cloud-100:#eef5f3;
   --cloud-50:#f7fbfa;
   --line:#dbe9e5;
@@ -64,6 +69,7 @@ html[data-theme="dark"]{
   --coral-100:#3a1f18;
   --gold-500:#ffc24d;
   --gold-100:#3a2c10;
+  --gold-star:#ffc24d;
   --violet-500:#a08bff;
   --violet-100:#241c42;
   --slate-900:#eef5f3;
@@ -326,8 +332,9 @@ a.card:hover, .card.hoverable:hover{ box-shadow:var(--shadow-md); transform:tran
   font-size:.74rem; font-weight:700; padding:5px 12px; border-radius:100px;
 }
 .badge-mint{ background:var(--mint-100); color:var(--ink); }
-.badge-coral{ background:var(--coral-100); color:#c9432c; }
-.badge-gold{ background:var(--gold-100); color:#96700f; }
+/* gate S8: badge text darkened to clear 4.5:1 on its tinted pill */
+.badge-coral{ background:var(--coral-100); color:#a8311d; }
+.badge-gold{ background:var(--gold-100); color:#7a5a08; }
 .badge-slate{ background:var(--cloud-100); color:var(--slate-500); }
 html[data-theme="dark"] .badge-coral{ color:var(--coral-400); }
 html[data-theme="dark"] .badge-gold{ color:var(--gold-500); }
@@ -552,6 +559,8 @@ html[data-theme="dark"] .cc-toast{ border:1px solid rgba(255,255,255,.28); }
 .dash-topbar h1{ font-size:1.4rem; margin-bottom:2px; }
 .dash-topbar .sub{ font-size:.85rem; color:var(--slate-400); margin:0; }
 .dash-body{ padding:30px 34px 60px; }
+/* gate S16: panel sections sit flush in the dashboard body */
+.dash-body section{ padding:0; }
 
 .stat-card{
   background:var(--card-bg-solid); border:1px solid var(--line); border-radius:var(--radius-lg);
@@ -649,13 +658,19 @@ html.theme-transition *{
 .slot-btn:hover{ border-color:var(--mint-300); }
 .slot-btn.selected{ background:var(--teal-950); border-color:var(--teal-950); color:#fff; }
 .slot-btn.selected small{ color:rgba(255,255,255,.75); }
+/* gate S7: dark-theme selection must stay legible on the dark canvas */
+html[data-theme="dark"] .slot-btn.selected{ background:var(--mint-300); border-color:var(--mint-300); color:var(--teal-950); }
+html[data-theme="dark"] .slot-btn.selected small{ color:var(--teal-900); }
 .slot-btn:disabled{ opacity:.45; cursor:not-allowed; }
 .cc-suggest-box{ border:1.5px solid var(--gold-500); background:rgba(224,165,60,.08); padding:14px 16px; border-radius:12px; margin-top:14px; }
 .cc-suggest-box .cc-suggest-title{ font-size:.86rem; font-weight:700; color:var(--ink); margin-bottom:10px; }
 .cc-suggestions{ display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px; }
+/* gate S7: suggestion chips use theme surfaces (white-on-white was invisible
+   in dark mode); hover goes dark-on-gold in both themes. */
 .cc-suggestion-btn{ font-family:var(--font-mono); font-size:.8rem; padding:8px 6px; border-radius:10px;
-  border:1.5px solid var(--gold-500); background:#fff; cursor:pointer; }
-.cc-suggestion-btn:hover{ background:var(--gold-500); color:#fff; }
+  border:1.5px solid var(--gold-500); background:var(--card-bg-solid); color:var(--ink); cursor:pointer;
+  transition:background .15s, color .15s; }
+.cc-suggestion-btn:hover{ background:var(--gold-500); color:var(--teal-950); }
 .cc-suggestion-hint{ grid-column:1/-1; font-size:.74rem; color:var(--slate-400); margin-top:2px; }
 
 @media (prefers-reduced-motion: reduce){

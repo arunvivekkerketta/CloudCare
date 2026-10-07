@@ -28,6 +28,11 @@
     document.querySelectorAll('.theme-toggle .label').forEach(l => {
       l.textContent = theme === 'dark' ? 'Light' : 'Dark';
     });
+    /* gate S21: the toggle reports its state to assistive tech */
+    document.querySelectorAll('.theme-toggle').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(theme === 'dark'));
+      btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+    });
   }
 
   function makeToggle(){
@@ -44,9 +49,10 @@
     return btn;
   }
 
-  // apply saved (or preferred) theme immediately — initial paint never animates
+  // apply saved theme — or, with nothing saved, the OS preference (gate S21)
   const saved = localStorage.getItem(KEY);
-  apply(saved || 'light', false);
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  apply(saved || (prefersDark ? 'dark' : 'light'), false);
 
   // place a toggle in the marketing nav
   const navCta = document.querySelector('.nav-cta');
@@ -97,8 +103,20 @@
   requestAnimationFrame(frame);
 })();
 
-/* ---------- modal engine (shared by any interface that needs a dialog) ---------- */
+/* ---------- modal engine (shared by any interface that needs a dialog) ----------
+   gate S10: focus moves to the first focusable element, Tab is trapped
+   inside the dialog, focus returns to the opener on close, and the dialog
+   is labelled by its heading. */
 let ccModalOverlay = null;
+let ccModalReturnFocus = null;
+
+const CC_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function ccModalFocusables(){
+  if(!ccModalOverlay) return [];
+  return Array.from(ccModalOverlay.querySelectorAll(CC_FOCUSABLE))
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+}
 
 function ccModalOpen(innerHTML){
   if(!ccModalOverlay){
@@ -109,15 +127,39 @@ function ccModalOpen(innerHTML){
       if(e.target === ccModalOverlay) ccModalClose();
     });
     document.addEventListener('keydown', (e) => {
-      if(e.key === 'Escape' && ccModalOverlay.classList.contains('show')) ccModalClose();
+      if(!ccModalOverlay || !ccModalOverlay.classList.contains('show')) return;
+      if(e.key === 'Escape'){ ccModalClose(); return; }
+      if(e.key !== 'Tab') return;
+      const items = ccModalFocusables();
+      if(!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      const current = document.activeElement;
+      if(e.shiftKey && (current === first || !ccModalOverlay.contains(current))){
+        e.preventDefault(); last.focus();
+      } else if(!e.shiftKey && (current === last || !ccModalOverlay.contains(current))){
+        e.preventDefault(); first.focus();
+      }
     });
   }
+  ccModalReturnFocus = document.activeElement;
   ccModalOverlay.innerHTML = `<div class="cc-modal" role="dialog" aria-modal="true">${innerHTML}</div>`;
   ccModalOverlay.querySelectorAll('[data-modal-close]').forEach(el => {
     el.addEventListener('click', (e) => { e.preventDefault(); ccModalClose(); });
   });
+  /* label the dialog with its own heading (first h3/h2 present) */
+  const modal = ccModalOverlay.querySelector('.cc-modal');
+  const heading = modal && modal.querySelector('h3, h2');
+  if(heading){
+    if(!heading.id) heading.id = 'ccModalTitle-' + Date.now();
+    modal.setAttribute('aria-labelledby', heading.id);
+  }
   document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => ccModalOverlay.classList.add('show'));
+  requestAnimationFrame(() => {
+    ccModalOverlay.classList.add('show');
+    const items = ccModalFocusables();
+    if(items.length) items[0].focus();
+    else if(modal){ modal.tabIndex = -1; modal.focus(); }
+  });
   return ccModalOverlay;
 }
 
@@ -125,6 +167,11 @@ function ccModalClose(){
   if(!ccModalOverlay) return;
   ccModalOverlay.classList.remove('show');
   document.body.style.overflow = '';
+  /* gate S10: hand focus back to whatever opened the dialog */
+  if(ccModalReturnFocus && document.contains(ccModalReturnFocus)){
+    try { ccModalReturnFocus.focus({ preventScroll: true }); } catch(e){}
+  }
+  ccModalReturnFocus = null;
 }
 
 /* ---------- change password (used from every dashboard's Profile panel) ---------- */
@@ -134,18 +181,19 @@ function ccOpenChangePassword(){
       <div><h3>Change password</h3><p>Enter your current password and choose a new one.</p></div>
       <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
     </div>
-    <div class="cc-modal-body">
-      <form id="pwForm">
-        <div class="field"><label for="pwCurrent">Current password</label><input id="pwCurrent" type="password" placeholder="••••••••" required></div>
-        <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" placeholder="At least 8 characters" minlength="8" required></div>
-        <div class="field"><label for="pwConfirm">Confirm new password</label><input id="pwConfirm" type="password" placeholder="Re-enter new password" required></div>
-      </form>
-      <div class="cc-modal-note">🔒 Passwords are hashed with Argon2id on the server.</div>
-    </div>
-    <div class="cc-modal-foot">
-      <button class="btn btn-ghost" data-modal-close>Cancel</button>
-      <button class="btn btn-primary" id="pwConfirmBtn">Update password</button>
-    </div>
+    <!-- gate S9: the submit button lives INSIDE the form, so Enter works -->
+    <form id="pwForm">
+      <div class="cc-modal-body">
+        <div class="field"><label for="pwCurrent">Current password</label><input id="pwCurrent" type="password" placeholder="••••••••" autocomplete="current-password" required></div>
+        <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="pwConfirm">Confirm new password</label><input id="pwConfirm" type="password" placeholder="Re-enter new password" autocomplete="new-password" required></div>
+        <div class="cc-modal-note">🔒 Passwords are hashed with Argon2id on the server.</div>
+      </div>
+      <div class="cc-modal-foot">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="pwConfirmBtn">Update password</button>
+      </div>
+    </form>
   `);
 
   const newInput = document.getElementById('pwNew');
@@ -156,11 +204,12 @@ function ccOpenChangePassword(){
   newInput.addEventListener('input', syncMatch);
   confirmInput.addEventListener('input', syncMatch);
 
-  document.getElementById('pwConfirmBtn').addEventListener('click', async function(){
-    const form = document.getElementById('pwForm');
+  document.getElementById('pwForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const form = ev.currentTarget;
     syncMatch();
     if(!form.reportValidity()) return;
-    const btn = this;
+    const btn = document.getElementById('pwConfirmBtn');
     btn.disabled = true;
     btn.textContent = 'Updating…';
     try {
@@ -181,37 +230,42 @@ function ccOpenChangePassword(){
   });
 }
 
-/* ---------- forgot password (login page) ---------- */
+/* ---------- forgot password (login page) — gate S9 ----------
+   No fake email flow: the form is honest about what the product can do
+   today, and submit is a real preventDefault'ed form submission. */
 function ccOpenForgotPassword(){
   ccModalOpen(`
     <div class="cc-modal-head">
-      <div><h3>Reset your password</h3><p>Enter your account email and we'll send you a reset link.</p></div>
+      <div><h3>Reset your password</h3><p>Email reset isn't wired up yet — here's what to do instead.</p></div>
       <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
     </div>
-    <div class="cc-modal-body">
-      <form id="forgotForm">
-        <div class="field"><label for="forgotEmail">Email</label><input id="forgotEmail" type="email" placeholder="you@cloudcare.demo" required></div>
-      </form>
-      <div class="cc-modal-note">📩 Email reset is not available yet — please contact an administrator to reset your password.</div>
-    </div>
-    <div class="cc-modal-foot">
-      <button class="btn btn-ghost" data-modal-close>Cancel</button>
-      <button class="btn btn-primary" id="forgotConfirmBtn">Contact support</button>
-    </div>
+    <form id="forgotForm">
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary">Contact an administrator and they can reset your password from the admin console.</div>
+        <div class="cc-modal-note">📩 There is no automated email reset in this build, so we won't ask for an email address we can't use.</div>
+      </div>
+      <div class="cc-modal-foot">
+        <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
+        <button type="submit" class="btn btn-primary">Got it</button>
+      </div>
+    </form>
   `);
 
-  document.getElementById('forgotConfirmBtn').addEventListener('click', function(){
+  document.getElementById('forgotForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
     ccModalClose();
     ccToast('Password reset by email is not available yet. Please contact an administrator.');
   });
 }
 
-/* ---------- toast ---------- */
+/* ---------- toast — gate S10: announced politely by screen readers ---------- */
 function ccToast(message){
   let el = document.querySelector('.cc-toast');
   if(!el){
     el = document.createElement('div');
     el.className = 'cc-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
     document.body.appendChild(el);
   }
   el.textContent = message;
@@ -371,4 +425,79 @@ window.ccScrollBehavior = ccScrollBehavior;
     tabs.forEach(x => x.classList.toggle('active', x === t));
     views.forEach(v => v.style.display = (v.dataset.agentView === t.dataset.agent) ? '' : 'none');
   }));
+})();
+
+/* ---------- gate S17: footer year comes from the clock, not a hardcode ---------- */
+(function initFooterYear(){
+  const year = String(new Date().getFullYear());
+  document.querySelectorAll('[data-year]').forEach(el => { el.textContent = year; });
+})();
+
+/* ---------- gate S5: client-side table filters ----------
+   Any <input data-filter-target="#tbodyId"> filters that tbody's rows by
+   text content — no server round-trip, keeps the current sort/state. */
+(function initTableFilters(){
+  document.querySelectorAll('[data-filter-target]').forEach(input => {
+    const findBody = () => document.querySelector(input.dataset.filterTarget);
+    input.addEventListener('input', () => {
+      const tbody = findBody();
+      if(!tbody) return;
+      const q = input.value.trim().toLowerCase();
+      if(tbody.querySelector('.cc-state-cell')) return; /* loading/empty/error row */
+      let visible = 0;
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const hit = !q || tr.textContent.toLowerCase().includes(q);
+        tr.hidden = !hit;
+        if(hit) visible++;
+      });
+      let empty = tbody.querySelector('.cc-filter-empty');
+      if(!q){ if(empty) empty.remove(); return; }
+      if(!visible && !empty){
+        const cols = (tbody.closest('table') && tbody.closest('table').querySelectorAll('thead th').length) || 1;
+        empty = document.createElement('tr');
+        empty.className = 'cc-filter-empty';
+        empty.innerHTML = `<td colspan="${cols}" class="cc-state-cell">No rows match "${ccEscape(input.value.trim())}".</td>`;
+        tbody.appendChild(empty);
+      } else if(visible && empty){ empty.remove(); }
+    });
+  });
+})();
+
+/* ---------- gate S7: Chart.js colours follow the active theme ---------- */
+window.ccCharts = [];
+window.ccRegisterChart = function(chart){ if(chart) window.ccCharts.push(chart); return chart; };
+/* convenience: create + register in one call (used by every chart page) */
+window.ccChart = function(el, config){ return window.ccRegisterChart(new window.Chart(el, config)); };
+window.ccChartPalette = function(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return dark
+    ? { text: '#9fb3af', grid: 'rgba(255,255,255,.10)' }
+    : { text: '#5b7370', grid: 'rgba(11,59,54,.10)' };
+};
+window.ccApplyChartTheme = function(){
+  if(!window.Chart) return;
+  try {
+    const p = window.ccChartPalette();
+    Chart.defaults.color = p.text;
+    (window.ccCharts || []).forEach(chart => {
+      try {
+        const scales = chart.options && chart.options.scales;
+        if(scales){
+          Object.keys(scales).forEach(key => {
+            const sc = scales[key] || {};
+            if(sc.ticks) sc.ticks.color = p.text;
+            if(sc.grid && sc.grid.color !== undefined) sc.grid.color = p.grid;
+          });
+        }
+        const legend = chart.options && chart.options.plugins && chart.options.plugins.legend;
+        if(legend && legend.labels && legend.labels.color !== undefined) legend.labels.color = p.text;
+        chart.update('none');
+      } catch(e){ /* one broken chart must not break the rest */ }
+    });
+  } catch(e){}
+};
+(function watchThemeForCharts(){
+  if(typeof MutationObserver === 'undefined') return;
+  new MutationObserver(() => window.ccApplyChartTheme())
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();

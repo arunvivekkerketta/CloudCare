@@ -344,10 +344,14 @@ function ccInitProfileForm(user){
   const nameInput = document.querySelector('[data-profile-name-input]');
   const emailInput = document.querySelector('[data-profile-email-input]');
 
+  /* gate S11: Cancel restores the LATEST SAVED values — the local copy is
+     replaced on every successful save, not just at page load. */
+  let currentUser = user;
+
   if(cancelBtn){
     cancelBtn.dataset.profileBound = '1';
     cancelBtn.addEventListener('click', () => {
-      ccRefreshUserIdentity(user);
+      ccRefreshUserIdentity(currentUser);
       ccToast('Changes discarded');
     });
   }
@@ -374,6 +378,7 @@ function ccInitProfileForm(user){
         method: 'PATCH',
         body: JSON.stringify({ name, email }),
       });
+      currentUser = updated;   /* gate S11: Cancel now restores THIS */
       ccSetSession(updated);
       ccRefreshUserIdentity(updated);
       ccToast('Profile updated');

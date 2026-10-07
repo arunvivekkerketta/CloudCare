@@ -4,19 +4,19 @@
    every chart block below no-ops while the table loaders keep working. */
 if(window.Chart){ try{
   Chart.defaults.font.family = "'Manrope', sans-serif";
-  Chart.defaults.color = '#5b7370';
+  Chart.defaults.color = (window.ccChartPalette ? window.ccChartPalette().text : '#5b7370');
 }catch(e){} }
 const ccTeal = '#2fb8a4', ccCoral = '#ff6f59', ccGold = '#e0a53c';
 
 /* ---------- overview charts ---------- */
 if(window.Chart){ try{
-new Chart(document.getElementById('admissionsChart'), {
+window.ccChart(document.getElementById('admissionsChart'), {
   type:'line',
   data:{ labels:['Wk1','Wk2','Wk3','Wk4','Wk5','Wk6','Wk7','Wk8'],
     datasets:[{ label:'Admissions', data:[210,224,198,240,255,238,262,281], borderColor:ccTeal, backgroundColor:'rgba(47,184,164,.12)', fill:true, tension:.4 }]},
   options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
 });
-new Chart(document.getElementById('deptChart'), {
+window.ccChart(document.getElementById('deptChart'), {
   type:'doughnut',
   data:{ labels:['Cardiology','General','Pediatrics','Orthopedics','Neurology'],
     datasets:[{ data:[28,24,18,16,14], backgroundColor:[ccTeal,ccCoral,ccGold,'#7f938f','#8fe3d8'] }]},
@@ -172,7 +172,7 @@ function ccComingSoon(title, note){
 
 /* ---------- AI console: inventory ---------- */
 if(window.Chart){ try{
-new Chart(document.getElementById('inventoryChart'), {
+window.ccChart(document.getElementById('inventoryChart'), {
   type:'bar',
   data:{ labels:['Insulin','Amlodipine','Furosemide','Salbutamol','Oxygen (cyl.)'],
     datasets:[{ label:'Days of stock left', data:[4,6,7,9,11], backgroundColor:(c)=>c.raw<7?ccCoral:ccGold, borderRadius:6 }]},
@@ -186,7 +186,7 @@ document.getElementById('reorderList').innerHTML = ccComingSoon(
 
 /* ---------- AI console: risk ---------- */
 if(window.Chart){ try{
-new Chart(document.getElementById('riskChart'), {
+window.ccChart(document.getElementById('riskChart'), {
   type:'doughnut',
   data:{ labels:['Low','Medium','High'], datasets:[{ data:[62,26,12], backgroundColor:[ccTeal,ccGold,ccCoral] }]},
   options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'62%' }
@@ -199,7 +199,7 @@ document.getElementById('riskList').innerHTML = ccComingSoon(
 
 /* ---------- AI console: resource forecast ---------- */
 if(window.Chart){ try{
-new Chart(document.getElementById('resourceChart'), {
+window.ccChart(document.getElementById('resourceChart'), {
   type:'line',
   data:{ labels:['Day 2','Day 4','Day 6','Day 8','Day 10','Day 12','Day 14'],
     datasets:[{ label:'ICU occupancy %', data:[71,74,79,84,88,90,93], borderColor:ccCoral, backgroundColor:'rgba(255,111,89,.12)', fill:true, tension:.4 }]},
@@ -213,7 +213,7 @@ document.getElementById('resourceList').innerHTML = ccComingSoon(
 
 /* ---------- reports panel ---------- */
 if(window.Chart){ try{
-new Chart(document.getElementById('reportChart'), {
+window.ccChart(document.getElementById('reportChart'), {
   type:'bar',
   data:{ labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'],
     datasets:[

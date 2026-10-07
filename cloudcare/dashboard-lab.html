@@ -7,6 +7,7 @@
 <title>Lab Dashboard — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
 <body>
@@ -85,15 +86,15 @@
           <div class="panel-head"><h3>Upload test result</h3></div>
           <div class="panel-body">
             <form onsubmit="event.preventDefault(); ccToast('Lab results module coming soon');">
-              <div class="field"><label>Sample ID</label>
-                <select disabled><option>No samples available — lab results module coming soon</option></select>
+              <div class="field"><label for="labSample">Sample ID</label>
+                <select id="labSample" disabled><option>No samples available — lab results module coming soon</option></select>
               </div>
               <div class="grid grid-2">
-                <div class="field"><label>Result value</label><input type="text" placeholder="e.g. 7.8%"></div>
-                <div class="field"><label>Reference range</label><input type="text" placeholder="e.g. 4.0 – 5.6%"></div>
+                <div class="field"><label for="labValue">Result value</label><input id="labValue" type="text" placeholder="e.g. 7.8%"></div>
+                <div class="field"><label for="labRange">Reference range</label><input id="labRange" type="text" placeholder="e.g. 4.0 – 5.6%"></div>
               </div>
-              <div class="field"><label>Interpretation notes</label><textarea placeholder="Any flags for the ordering doctor…"></textarea></div>
-              <div class="field"><label>Attach report file</label><input type="file"></div>
+              <div class="field"><label for="labNotes">Interpretation notes</label><textarea id="labNotes" placeholder="Any flags for the ordering doctor…"></textarea></div>
+              <div class="field"><label for="labFile">Attach report file</label><input id="labFile" type="file"></div>
               <button type="submit" class="btn btn-accent">Upload &amp; notify doctor</button>
             </form>
           </div>
@@ -108,9 +109,9 @@
             <p data-profile-role>Lab Tech</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
-            <div class="field"><label>Lab section</label><input type="text" placeholder="e.g. Central Laboratory"></div>
+            <div class="field"><label for="profName">Full name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
+            <div class="field"><label for="profSection">Lab section</label><input id="profSection" type="text" placeholder="Managed by the admin" disabled><span class="field-hint">Coming soon — section assignment has no endpoint yet.</span></div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
               <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>

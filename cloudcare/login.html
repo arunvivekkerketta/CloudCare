@@ -7,6 +7,7 @@
 <title>Sign in — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
@@ -46,11 +47,11 @@
     <form id="loginForm">
       <div class="field">
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="you@cloudcare.demo" required>
+        <input id="loginEmail" type="email" placeholder="you@cloudcare.demo" autocomplete="email" required>
       </div>
       <div class="field">
         <label for="loginPassword">Password</label>
-        <input id="loginPassword" type="password" placeholder="••••••••" required>
+        <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" required>
         <a href="#" onclick="event.preventDefault(); ccOpenForgotPassword();" style="display:inline-block;margin-top:8px;font-size:.8rem;font-weight:700;color:var(--coral-500);">Forgot password?</a>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Sign in</button>

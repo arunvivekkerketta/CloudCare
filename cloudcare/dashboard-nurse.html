@@ -7,6 +7,7 @@
 <title>Nurse Dashboard — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
 <body>
@@ -73,16 +74,16 @@
           <div class="panel-head"><h3>Log patient vitals</h3></div>
           <div class="panel-body">
             <form onsubmit="event.preventDefault(); ccToast('Vitals logged to record (demo)'); this.reset();">
-              <div class="field"><label>Patient / Bed</label>
-                <select><option>Bed 4 — Vikram Rao</option><option>Bed 7 — Farhan Ali</option><option>Bed 2 — Anita Sharma</option></select>
+              <div class="field"><label for="vitalPatient">Patient / Bed</label>
+                <select id="vitalPatient" disabled><option value="">Bed roster coming soon — no patient-list endpoint for nurses yet</option></select>
               </div>
               <div class="grid grid-2">
-                <div class="field"><label>Blood pressure</label><input type="text" placeholder="e.g. 128/82"></div>
-                <div class="field"><label>Heart rate (bpm)</label><input type="number" placeholder="e.g. 78"></div>
-                <div class="field"><label>Temperature (°C)</label><input type="number" step="0.1" placeholder="e.g. 37.0"></div>
-                <div class="field"><label>SpO₂ (%)</label><input type="number" placeholder="e.g. 97"></div>
+                <div class="field"><label for="vitalBp">Blood pressure</label><input id="vitalBp" type="text" placeholder="e.g. 128/82"></div>
+                <div class="field"><label for="vitalHr">Heart rate (bpm)</label><input id="vitalHr" type="number" placeholder="e.g. 78"></div>
+                <div class="field"><label for="vitalTemp">Temperature (°C)</label><input id="vitalTemp" type="number" step="0.1" placeholder="e.g. 37.0"></div>
+                <div class="field"><label for="vitalSpo2">SpO₂ (%)</label><input id="vitalSpo2" type="number" placeholder="e.g. 97"></div>
               </div>
-              <div class="field"><label>Notes</label><textarea placeholder="Any observations…"></textarea></div>
+              <div class="field"><label for="vitalNotes">Notes</label><textarea id="vitalNotes" placeholder="Any observations…"></textarea></div>
               <button type="submit" class="btn btn-accent">Save vitals</button>
             </form>
           </div>
@@ -104,9 +105,9 @@
             <p data-profile-role>Nurse</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
-            <div class="field"><label>Ward</label><input type="text" placeholder="e.g. Ward B"></div>
+            <div class="field"><label for="profName">Full name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
+            <div class="field"><label for="profWard">Ward</label><input id="profWard" type="text" placeholder="Managed by the admin" disabled><span class="field-hint">Coming soon — ward assignment has no endpoint yet.</span></div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
               <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>

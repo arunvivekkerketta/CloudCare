@@ -7,6 +7,7 @@
 <title>Create account — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
@@ -48,19 +49,20 @@
     <form id="registerForm">
       <div class="field">
         <label for="regName">Full name</label>
-        <input id="regName" type="text" placeholder="e.g. Simran Kaur" required>
+        <input id="regName" type="text" placeholder="e.g. Alex Rao" autocomplete="name" required>
       </div>
       <div class="field">
         <label for="regEmail">Email</label>
-        <input id="regEmail" type="email" placeholder="you@cloudcare.demo" required>
+        <input id="regEmail" type="email" placeholder="you@cloudcare.demo" autocomplete="email" required>
       </div>
       <div class="field">
         <label for="regPassword">Password</label>
-        <input id="regPassword" type="password" placeholder="••••••••" required>
+        <input id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password" minlength="8" required>
+        <span class="field-hint">Use at least 8 characters — letters and numbers recommended.</span>
       </div>
       <div class="field">
         <label for="regConfirmPassword">Confirm password</label>
-        <input id="regConfirmPassword" type="password" placeholder="Re-enter your password" required>
+        <input id="regConfirmPassword" type="password" placeholder="Re-enter your password" autocomplete="new-password" required>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Create account</button>
     </form>

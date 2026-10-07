@@ -7,6 +7,7 @@
 <title>Doctor Dashboard — CloudCare</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
@@ -67,7 +68,7 @@
 
       <section class="panel-view" id="panel-patients">
         <div class="panel">
-          <div class="panel-head"><h3>My patients</h3><input type="search" placeholder="Search…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
+          <div class="panel-head"><h3>My patients</h3><input type="search" placeholder="Search patients…" aria-label="Filter patients by name or condition" data-filter-target="#myPatientTable" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
           <div class="panel-body" style="padding-top:0;">
             <div class="table-scroll">
             <table><thead><tr><th>Patient</th><th>Condition</th><th>Last visit</th><th>Risk score</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -127,7 +128,7 @@
       <section class="panel-view" id="panel-telemedicine">
         <div class="panel">
           <div class="panel-head"><h3>Telemedicine queue</h3><span class="badge badge-mint" id="teleBadge">● 0 waiting</span></div>
-          <div class="panel-body" id="teleList"></div>
+          <div class="panel-body" id="teleList"><div class="risk-row" style="padding:14px 0;"><div><strong style="font-size:.9rem;">No telemedicine calls waiting</strong><span style="display:block;font-size:.78rem;color:var(--slate-400);">Video consults appear here when a patient requests one — nothing is queued right now.</span></div></div></div>
         </div>
       </section>
 
@@ -139,10 +140,10 @@
             <p data-profile-role>Doctor</p>
           </div>
           <div class="panel-body">
-            <div class="field"><label>Display name</label><input type="text" data-profile-name-input></div>
-            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
-            <div class="field"><label>Department</label><input type="text" placeholder="e.g. Cardiology"></div>
-            <div class="field"><label>Consultation hours</label><input type="text" placeholder="e.g. 9:00 AM – 4:00 PM"></div>
+            <div class="field"><label for="profName">Display name</label><input id="profName" type="text" data-profile-name-input autocomplete="name"></div>
+            <div class="field"><label for="profEmail">Email</label><input id="profEmail" type="email" data-profile-email-input autocomplete="email"></div>
+            <div class="field"><label for="profDept">Department</label><input id="profDept" type="text" placeholder="Managed by the clinic admin" disabled><span class="field-hint">Coming soon — departments are managed from the admin console.</span></div>
+            <div class="field"><label for="profHours">Consultation hours</label><input id="profHours" type="text" placeholder="Not saved yet" disabled><span class="field-hint">Coming soon — shift hours are set in "Manage shifts &amp; leaves".</span></div>
             <div class="flex gap-12 mt-8">
               <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
               <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
@@ -173,12 +174,13 @@
    A blocked Chart.js CDN leaves `window.Chart` undefined — this block no-ops
    and the dashboard logic below still loads. */
 if(window.Chart){ try{
-  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-  new Chart(document.getElementById('consultChart'), {
+  const pal = window.ccChartPalette ? window.ccChartPalette() : { text: '#5b7370' };
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = pal.text;
+  window.ccRegisterChart(new Chart(document.getElementById('consultChart'), {
     type:'bar',
     data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat'], datasets:[{ label:'Consultations', data:[7,9,6,8,8,4], backgroundColor:'#2fb8a4', borderRadius:6 }]},
     options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
-  });
+  }));
 }catch(e){} }
 </script>
 <script>
@@ -244,45 +246,53 @@ window.ccLoadDoctorDashboard = async function(user){
 
   /* appointments (status flowing through Requested -> Confirmed/Declined) */
   try {
-    const tbody = tbodyAppts;
-    const teleBadge = document.getElementById('teleBadge');
-    if(teleBadge) teleBadge.textContent = `● ${appts.filter(a => a.mode === 'Telemedicine' && a.status !== 'Declined' && a.status !== 'Cancelled').length} waiting`;
-    if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments scheduled.', 6); }
-    else {
-      tbody.innerHTML = appts.map(a => {
-        const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-        const badge = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : a.status === 'Cancelled' ? 'badge-slate' : 'badge-coral';
-        let actions = '';
-        if(a.status === 'Requested'){
-          actions = `<button class="btn btn-sm btn-primary" data-confirm="${a.id}">Confirm</button>
-                     <button class="btn btn-sm btn-ghost" data-decline="${a.id}">Decline</button>`;
-        }
-        return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || '—')}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td class="doc-appt-actions">${actions}</td></tr>`;
-      }).join('');
-      tbody.querySelectorAll('button[data-confirm]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Confirmed')));
-      tbody.querySelectorAll('button[data-decline]').forEach(btn => btn.addEventListener('click', () => confirmDecline(btn)));
-    }
-    /* next-up list: gate C4 — FUTURE Requested/Confirmed only, soonest first */
-    const nextUp = document.getElementById('nextUpList');
-    if(nextUp){
-      const nowMs = Date.now();
-      const upcoming = appts
-        .filter(a => a.status === 'Confirmed' || a.status === 'Requested')
-        .filter(a => new Date(a.scheduled_at).getTime() >= nowMs)
-        .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at));
-      if(!upcoming.length){
-        nextUp.innerHTML = '<div class="risk-row" style="padding:12px 0;"><span style="color:var(--slate-400);font-size:.85rem;">Nothing upcoming — no past or cancelled visit will be listed here.</span></div>';
-      } else {
-        nextUp.innerHTML = upcoming.slice(0, 3).map(a => {
-          const time = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
-          return `<div class="risk-row" style="padding:12px 0;border-bottom:1px solid var(--cloud-100);">
-          <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Consultation')}</span></div>
-          <span class="badge badge-slate mono">${time}</span></div>`;
-        }).join('');
-      }
-    }
-  } catch(err){ ccRenderState(document.querySelector('#doctorApptTable'), 'error', err.message, 6); }
+    ccRenderDoctorAppointments(appts);
+  } catch(err){ ccRenderState(tbodyAppts, 'error', err.message, 6); }
 };
+
+/* gate S4: appointments + next-up render, shared by the initial load (which
+   shows the Loading… state first) and the 30s poll (which swaps rows in
+   place, so the table never blanks after the first successful load). */
+function ccRenderDoctorAppointments(appts){
+  const tbody = document.querySelector('#doctorApptTable');
+  if(!tbody) return;
+  const teleBadge = document.getElementById('teleBadge');
+  if(teleBadge) teleBadge.textContent = `● ${appts.filter(a => a.mode === 'Telemedicine' && a.status !== 'Declined' && a.status !== 'Cancelled').length} waiting`;
+  if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments scheduled.', 6); }
+  else {
+    tbody.innerHTML = appts.map(a => {
+      const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      const badge = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : a.status === 'Cancelled' ? 'badge-slate' : 'badge-coral';
+      let actions = '';
+      if(a.status === 'Requested'){
+        actions = `<button class="btn btn-sm btn-primary" data-confirm="${a.id}">Confirm</button>
+                   <button class="btn btn-sm btn-ghost" data-decline="${a.id}">Decline</button>`;
+      }
+      return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || '—')}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td class="doc-appt-actions">${actions}</td></tr>`;
+    }).join('');
+    tbody.querySelectorAll('button[data-confirm]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Confirmed')));
+    tbody.querySelectorAll('button[data-decline]').forEach(btn => btn.addEventListener('click', () => confirmDecline(btn)));
+  }
+  /* next-up list: gate C4 — FUTURE Requested/Confirmed only, soonest first */
+  const nextUp = document.getElementById('nextUpList');
+  if(nextUp){
+    const nowMs = Date.now();
+    const upcoming = appts
+      .filter(a => a.status === 'Confirmed' || a.status === 'Requested')
+      .filter(a => new Date(a.scheduled_at).getTime() >= nowMs)
+      .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at));
+    if(!upcoming.length){
+      nextUp.innerHTML = '<div class="risk-row" style="padding:12px 0;"><span style="color:var(--slate-400);font-size:.85rem;">Nothing upcoming — no past or cancelled visit will be listed here.</span></div>';
+    } else {
+      nextUp.innerHTML = upcoming.slice(0, 3).map(a => {
+        const time = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
+        return `<div class="risk-row" style="padding:12px 0;border-bottom:1px solid var(--cloud-100);">
+        <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Consultation')}</span></div>
+        <span class="badge badge-slate mono">${time}</span></div>`;
+      }).join('');
+    }
+  }
+}
 
 /* Confirm / Decline (gates 8b/9): buttons live inside table cells; PATCH,
    then refresh polling feed. Declining frees the slot immediately. */
@@ -294,7 +304,10 @@ async function settle(btn, status){
     await ccApi(`/api/appointments/${id}`, { method:'PATCH', body: JSON.stringify({ status }) });
     ccToast(status === 'Confirmed' ? 'Appointment confirmed' : 'Appointment declined — slot freed');
     row.remove();
-    window.ccDoctorAppointmentsLoad();
+    /* light refresh: appointments feed only, no Loading… flash (gate S4) */
+    ccApi('/api/appointments?page_size=100')
+      .then(appts => ccRenderDoctorAppointments(appts))
+      .catch(() => {});
   } catch(err){
     btn.disabled = false;
     ccToast(err.message || 'Could not update the appointment.');
@@ -330,16 +343,27 @@ window.ccDoctorAppointmentsLoad = async function(){
   if(user) await window.ccLoadDoctorDashboard(user);
 };
 
+/* gate S4: the poll touches ONLY the appointments feed — no Loading… state,
+   no patients/stats/profile churn. It skips while a modal is open or any
+   button is mid-click (a confirm/decline/save in flight), and a failed poll
+   keeps the last good rows on screen. */
+async function ccDoctorAppointmentsPoll(){
+  if(document.hidden) return;
+  if(document.querySelector('.cc-modal-overlay.show')) return;   // modal open
+  if(document.querySelector('.btn[disabled]')) return;           // click in flight
+  try {
+    const appts = await ccApi('/api/appointments?page_size=100');
+    ccRenderDoctorAppointments(appts); // swap in place — never a blank table
+  } catch(err){ /* silent: keep the last good rows */ }
+}
+
 /* 30-second polling so a fresh Requested appears without manual refresh. */
 (function docApptPolling(){
   document.getElementById('docApptRefresh')?.addEventListener('click', () => window.ccDoctorAppointmentsLoad());
   let timer = null;
   window.ccStartDoctorPolling = function(){
     if(timer) clearInterval(timer);
-    timer = setInterval(() => {
-      if(document.hidden) return;
-      window.ccDoctorAppointmentsLoad();
-    }, 30000);
+    timer = setInterval(ccDoctorAppointmentsPoll, 30000);
   };
 })();
 </script>
