@@ -22,11 +22,11 @@
       <div><strong data-user-name></strong><span data-user-role>Nurse</span></div>
     </div>
     <nav class="side-nav">
-      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
-      <a data-panel="ward"><span class="ic">🛏️</span>Ward Overview</a>
-      <a data-panel="vitals"><span class="ic">💉</span>Log Vitals</a>
-      <a data-panel="tasks"><span class="ic">✅</span>Shift Tasks</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">🏠</span><span class="lbl">Overview</span></a>
+      <a data-panel="ward" href="#panel-ward"><span class="ic">🛏️</span><span class="lbl">Ward Overview</span></a>
+      <a data-panel="vitals" href="#panel-vitals"><span class="ic">💉</span><span class="lbl">Log Vitals</span></a>
+      <a data-panel="tasks" href="#panel-tasks"><span class="ic">✅</span><span class="lbl">Shift Tasks</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
   </aside>
@@ -35,7 +35,7 @@
     <div class="dash-topbar">
       <div><h1 id="topbarTitle">Overview</h1><p class="sub">Ward B · Morning shift, 7:00 AM – 3:00 PM</p></div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint">● On shift</span>
+        <span class="badge badge-mint" id="nurseTodayBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>NR</div>
       </div>
     </div>
@@ -44,10 +44,11 @@
 
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
-          <div class="stat-card"><h3>12</h3><span class="stat-label">Patients under care</span></div>
-          <div class="stat-card"><h3>4</h3><span class="stat-label">Vitals due this hour</span></div>
-          <div class="stat-card"><h3>9</h3><span class="stat-label">Tasks completed today</span></div>
-          <div class="stat-card"><h3>2</h3><span class="stat-label">Critical alerts</span></div>
+          <!-- gate C5: only the first number has an endpoint; the rest are honest "—". -->
+          <div class="stat-card"><h3 id="nurseStatToday">—</h3><span class="stat-label">Patients expected today</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Vitals due this hour</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Tasks completed today</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Critical alerts</span><div><span class="badge badge-slate">Coming soon</span></div></div>
         </div>
         <div class="panel mt-24">
           <div class="panel-head"><h3>Priority alerts</h3></div>
@@ -57,10 +58,12 @@
 
       <section class="panel-view" id="panel-ward">
         <div class="panel">
-          <div class="panel-head"><h3>Ward B — bed status</h3><span class="badge badge-slate">12 / 16 occupied</span></div>
+          <div class="panel-head"><h3>Ward B — bed status</h3><span class="badge badge-slate">Occupancy: — · Coming soon</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table><thead><tr><th>Bed</th><th>Patient</th><th>Condition</th><th>Last vitals</th><th>Status</th></tr></thead>
             <tbody id="wardTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -127,38 +130,61 @@
 <script>ccGuardDashboard('nurse').then(user => { if(user) window.ccLoadNurseDashboard(user); });</script>
 <script>
 window.ccLoadNurseDashboard = async function(user){
-  /* priority alerts — admitted patients with high risk scores */
+  /* today's real visits — one fetch feeds the stat, badge and both panels */
+  let appts = [];
+  try {
+    appts = await ccApi('/api/appointments?page_size=100');
+  } catch(err){ appts = null; }
+
+  if(appts){
+    const todayStr = new Date().toDateString();
+    const todays = appts.filter(a =>
+      (a.status === 'Requested' || a.status === 'Confirmed') &&
+      new Date(a.scheduled_at).toDateString() === todayStr);
+    const stat = document.getElementById('nurseStatToday');
+    if(stat) stat.textContent = String(todays.length);
+    const badge = document.getElementById('nurseTodayBadge');
+    if(badge){
+      badge.textContent = `● ${todays.length} visit${todays.length === 1 ? '' : 's'} today`;
+      badge.hidden = false;
+      badge.style.display = '';
+    }
+  }
+
+  /* priority alerts — today's appointments with their REAL statuses */
   try {
     const alertList = document.getElementById('alertList');
-    const appts = await ccApi('/api/appointments?page_size=100');
-    const today = new Date();
-    const todays = appts.filter(a => {
-      const d = new Date(a.scheduled_at);
-      return d.toDateString() === today.toDateString();
-    });
+    if(!appts){ throw new Error('Could not load today\'s visits.'); }
+    const todayStr = new Date().toDateString();
+    const todays = appts.filter(a => new Date(a.scheduled_at).toDateString() === todayStr);
     if(!todays.length){
       alertList.innerHTML = '<div class="risk-row" style="padding:14px 0;"><span style="color:var(--slate-400);font-size:.85rem;">No priority alerts today.</span></div>';
     } else {
-      alertList.innerHTML = todays.slice(0, 4).map(a => `
+      alertList.innerHTML = todays.slice(0, 4).map(a => {
+        const badgeClass = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : 'badge-slate';
+        return `
         <div class="risk-row" style="padding:14px 0;border-bottom:1px solid var(--cloud-100);">
           <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)} · ${ccEscape(a.department)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Scheduled visit')} · ${ccEscape(a.status)}</span></div>
-          <span class="badge ${a.status==='Waiting'?'badge-coral':'badge-gold'}">${ccEscape(a.status)}</span></div>`).join('');
+          <span class="badge ${badgeClass}">${ccEscape(a.status)}</span></div>`;
+      }).join('');
     }
   } catch(err){
     document.getElementById('alertList').innerHTML = `<div class="risk-row" style="padding:14px 0;color:#c9432c;font-size:.85rem;">${ccEscape(err.message)}</div>`;
   }
 
-  /* ward table — admitted patients from the appointments feed */
+  /* ward table — real appointment feed. gate C5: the fabricated
+     "Stable / Watch" labels (derived from statuses that don't exist)
+     are replaced by the appointment's actual status. */
   try {
     const tbody = document.getElementById('wardTable');
     ccRenderState(tbody, 'loading', '', 5);
-    const appts = await ccApi('/api/appointments?page_size=100');
+    if(!appts) throw new Error('Could not load the ward list.');
     if(!appts.length){ ccRenderState(tbody, 'empty', 'No patients on the ward list.', 5); return; }
     tbody.innerHTML = appts.slice(0, 8).map((a, i) => {
       const last = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'numeric', minute:'2-digit' });
-      const watch = a.status === 'Waiting' || a.status === 'Checked in';
+      const badgeClass = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : 'badge-slate';
       return `<tr><td class="mono">Ward ${String(i + 1).padStart(2,'0')}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || a.department)}</td><td class="mono">${last}</td>
-        <td><span class="badge ${watch?'badge-coral':'badge-mint'}">${watch?'Watch':'Stable'}</span></td></tr>`;
+        <td><span class="badge ${badgeClass}">${ccEscape(a.status)}</span></td></tr>`;
     }).join('');
   } catch(err){ ccRenderState(document.getElementById('wardTable'), 'error', err.message, 5); }
 

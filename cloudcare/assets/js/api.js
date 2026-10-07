@@ -69,9 +69,14 @@ async function ccApi(path, options = {}){
   }
 
   if(response.status === 401 && !CC_NO_AUTH_REDIRECT.some(p => path.startsWith(p))){
+    /* gate C16: public pages pass {noRedirect:true} — clear the dead session
+       but stay on the page (visiting index.html with a revoked token must not
+       bounce to the login screen). */
     ccClearSession();
-    const next = encodeURIComponent(ccCurrentReturnTarget());
-    window.location.href = `login.html?expired=1${next ? `&next=${next}` : ''}`;
+    if(!options.noRedirect){
+      const next = encodeURIComponent(ccCurrentReturnTarget());
+      window.location.href = `login.html?expired=1${next ? `&next=${next}` : ''}`;
+    }
     throw new Error('Your session has expired. Please sign in again.');
   }
 
@@ -92,7 +97,10 @@ async function ccApi(path, options = {}){
   }
 
   if(!response.ok){
-    throw new Error(ccErrorMessage(body, `Request failed (${response.status}).`));
+    const error = new Error(ccErrorMessage(body, `Request failed (${response.status}).`));
+    /* gate S12: callers need the status (409 slot-taken vs 500 etc.). */
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
@@ -107,13 +115,16 @@ function ccErrorMessage(body, fallback){
 }
 
 /* ---------- list/table render states ---------- */
+/* gate C8: state rows are plain centred cells (class-driven, not inline
+   styles) so the colspan spans every column and centres cleanly — the old
+   td:first-child flex layout made them shrink to one column. */
 function ccRenderState(tbody, state, message, colspan){
   const span = colspan || 1;
   if(state === 'loading'){
-    tbody.innerHTML = `<tr><td colspan="${span}" style="text-align:center;padding:28px;color:var(--slate-400);">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell">Loading…</td></tr>`;
   } else if(state === 'empty'){
-    tbody.innerHTML = `<tr><td colspan="${span}" style="text-align:center;padding:28px;color:var(--slate-400);">${ccEscape(message || 'Nothing here yet.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell">${ccEscape(message || 'Nothing here yet.')}</td></tr>`;
   } else if(state === 'error'){
-    tbody.innerHTML = `<tr><td colspan="${span}" style="text-align:center;padding:28px;color:#c9432c;">${ccEscape(message || 'Something went wrong.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell cc-state-error">${ccEscape(message || 'Something went wrong.')}</td></tr>`;
   }
 }

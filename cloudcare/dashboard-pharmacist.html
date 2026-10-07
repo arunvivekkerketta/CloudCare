@@ -23,11 +23,11 @@
       <div><strong data-user-name></strong><span data-user-role>Pharmacist</span></div>
     </div>
     <nav class="side-nav">
-      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
-      <a data-panel="queue"><span class="ic">💊</span>Prescription Queue</a>
-      <a data-panel="inventory"><span class="ic">📦</span>Inventory</a>
-      <a data-panel="history"><span class="ic">🧾</span>Dispensed History</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">🏠</span><span class="lbl">Overview</span></a>
+      <a data-panel="queue" href="#panel-queue"><span class="ic">💊</span><span class="lbl">Prescription Queue</span></a>
+      <a data-panel="inventory" href="#panel-inventory"><span class="ic">📦</span><span class="lbl">Inventory</span></a>
+      <a data-panel="history" href="#panel-history"><span class="ic">🧾</span><span class="lbl">Dispensed History</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
   </aside>
@@ -36,7 +36,7 @@
     <div class="dash-topbar">
       <div><h1 id="topbarTitle">Overview</h1><p class="sub">Central Pharmacy · Counter 2</p></div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint">● Counter open</span>
+        <span class="badge badge-mint" id="pharmBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>PH</div>
       </div>
     </div>
@@ -45,13 +45,14 @@
 
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
-          <div class="stat-card"><h3>7</h3><span class="stat-label">Prescriptions in queue</span></div>
-          <div class="stat-card"><h3>12</h3><span class="stat-label">Items low on stock</span></div>
-          <div class="stat-card"><h3>134</h3><span class="stat-label">Dispensed today</span></div>
-          <div class="stat-card"><h3>3</h3><span class="stat-label">Pending reorders</span></div>
+          <!-- gate C5: queue count is derived from the real appointments feed. -->
+          <div class="stat-card"><h3 id="pharmStatQueue">—</h3><span class="stat-label">Expected at the counter</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Items low on stock</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Dispensed today</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Pending reorders</span><div><span class="badge badge-slate">Coming soon</span></div></div>
         </div>
         <div class="panel mt-24">
-          <div class="panel-head"><h3>Stock levels — top medicines</h3></div>
+          <div class="panel-head"><h3>Stock levels — top medicines</h3><span class="badge badge-slate">Sample data</span></div>
           <div class="panel-body"><canvas id="stockChart" height="210"></canvas></div>
         </div>
       </section>
@@ -67,8 +68,10 @@
         <div class="panel">
           <div class="panel-head"><h3>Medicine inventory</h3><input type="search" placeholder="Search inventory…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table><thead><tr><th>Medicine</th><th>Stock</th><th>Expiry</th><th>Status</th></tr></thead>
             <tbody id="invTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -77,8 +80,10 @@
         <div class="panel">
           <div class="panel-head"><h3>Dispensed history</h3></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table><thead><tr><th>Time</th><th>Patient</th><th>Medicine</th><th>Qty</th></tr></thead>
             <tbody id="historyTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -116,13 +121,16 @@
 <script src="assets/js/auth.js"></script>
 <script>ccGuardDashboard('pharmacist').then(user => { if(user) window.ccLoadPharmacistDashboard(user); });</script>
 <script>
-Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-new Chart(document.getElementById('stockChart'), {
-  type:'bar',
-  data:{ labels:['Insulin','Paracetamol','Amoxicillin','Metformin','Amlodipine','Atorvastatin'],
-    datasets:[{ label:'Units in stock', data:[180,640,410,520,88,340], backgroundColor:(ctx)=>ctx.raw<150?'#ff6f59':'#2fb8a4', borderRadius:6 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
-});
+/* gate C6: chart isolated + guarded — a blocked CDN no-ops this block. */
+if(window.Chart){ try{
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
+  new Chart(document.getElementById('stockChart'), {
+    type:'bar',
+    data:{ labels:['Insulin','Paracetamol','Amoxicillin','Metformin','Amlodipine','Atorvastatin'],
+      datasets:[{ label:'Units in stock', data:[180,640,410,520,88,340], backgroundColor:(ctx)=>ctx.raw<150?'#ff6f59':'#2fb8a4', borderRadius:6 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+}catch(e){} }
 
 window.ccLoadPharmacistDashboard = async function(user){
   /* prescription queue — derived from today's appointments (prescriptions
@@ -132,14 +140,23 @@ window.ccLoadPharmacistDashboard = async function(user){
     const appts = await ccApi('/api/appointments?page_size=100');
     const badge = document.getElementById('queueBadge');
     if(badge) badge.textContent = `${appts.length} waiting`;
+    const stat = document.getElementById('pharmStatQueue');
+    if(stat) stat.textContent = String(appts.length);
+    const topBadge = document.getElementById('pharmBadge');
+    if(topBadge){
+      topBadge.textContent = `● ${appts.length} expected`;
+      topBadge.hidden = false;
+      topBadge.style.display = '';
+    }
     if(!appts.length){
       queue.innerHTML = '<div class="risk-row" style="padding:14px 0;"><span style="color:var(--slate-400);font-size:.85rem;">No prescriptions in the queue.</span></div>';
     } else {
       queue.innerHTML = appts.slice(0, 6).map(a => {
-        const urgent = a.status === 'Waiting';
+        /* gate C5: real appointment status instead of a fabricated Urgent/Routine flag */
+        const statusClass = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : 'badge-slate';
         return `<div class="risk-row" style="padding:14px 0;border-bottom:1px solid var(--cloud-100);">
           <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)} — ${ccEscape(a.department)}</strong><span style="font-size:.78rem;color:var(--slate-400);">Prescribed by ${ccEscape(a.doctor_name)} · ${ccEscape(a.reason || 'Consultation')}</span></div>
-          <div class="flex items-center gap-12"><span class="badge ${urgent?'badge-coral':'badge-slate'}">${urgent?'Urgent':'Routine'}</span>
+          <div class="flex items-center gap-12"><span class="badge ${statusClass}">${ccEscape(a.status)}</span>
           <button class="btn btn-sm btn-accent" onclick="ccToast('Prescriptions module coming soon')">Dispense</button></div></div>`;
       }).join('');
     }

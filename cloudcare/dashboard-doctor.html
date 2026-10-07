@@ -23,22 +23,22 @@
       <div><strong data-user-name></strong><span data-user-role>Doctor</span></div>
     </div>
     <nav class="side-nav">
-      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
-      <a data-panel="patients"><span class="ic">🧑‍⚕️</span>My Patients</a>
-      <a data-panel="appointments"><span class="ic">📅</span>Appointments</a>
-      <a data-panel="emr"><span class="ic">📋</span>Electronic Records</a>
-      <a data-panel="prescriptions"><span class="ic">💊</span>Prescriptions</a>
-      <a data-panel="telemedicine"><span class="ic">🎥</span>Telemedicine</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">🏠</span><span class="lbl">Overview</span></a>
+      <a data-panel="patients" href="#panel-patients"><span class="ic">🧑‍⚕️</span><span class="lbl">My Patients</span></a>
+      <a data-panel="appointments" href="#panel-appointments"><span class="ic">📅</span><span class="lbl">Appointments</span></a>
+      <a data-panel="emr" href="#panel-emr"><span class="ic">📋</span><span class="lbl">Electronic Records</span></a>
+      <a data-panel="prescriptions" href="#panel-prescriptions"><span class="ic">💊</span><span class="lbl">Prescriptions</span></a>
+      <a data-panel="telemedicine" href="#panel-telemedicine"><span class="ic">🎥</span><span class="lbl">Telemedicine</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
   </aside>
 
   <main class="dash-main">
     <div class="dash-topbar">
-      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Cardiology · Today, 8 patients scheduled</p></div>
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub" id="docSubtitle">Welcome back — here's your clinic at a glance</p></div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint">● On duty</span>
+        <span class="badge badge-mint" id="docTodayBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>DR</div>
       </div>
     </div>
@@ -47,10 +47,11 @@
 
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
-          <div class="stat-card"><h3>8</h3><span class="stat-label">Patients today</span></div>
-          <div class="stat-card"><h3>214</h3><span class="stat-label">Total under care</span></div>
-          <div class="stat-card"><h3>3</h3><span class="stat-label">Pending prescriptions</span></div>
-          <div class="stat-card"><h3>4.8★</h3><span class="stat-label">Patient rating</span></div>
+          <!-- gate C5: stats below are filled from the API or show "—". -->
+          <div class="stat-card"><h3 id="statToday">—</h3><span class="stat-label">Patients today</span></div>
+          <div class="stat-card"><h3 id="statUnderCare">—</h3><span class="stat-label">Total under care</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Pending prescriptions</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3 id="statRating">—</h3><span class="stat-label">Patient rating</span></div>
         </div>
         <div class="grid grid-2 mt-24">
           <div class="panel">
@@ -58,7 +59,7 @@
             <div class="panel-body" id="nextUpList"></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>Consultations — this week</h3></div>
+            <div class="panel-head"><h3>Consultations — this week</h3><span class="badge badge-slate">Sample data</span></div>
             <div class="panel-body"><canvas id="consultChart" height="200"></canvas></div>
           </div>
         </div>
@@ -68,8 +69,10 @@
         <div class="panel">
           <div class="panel-head"><h3>My patients</h3><input type="search" placeholder="Search…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
           <div class="panel-body" style="padding-top:0;">
-            <table><thead><tr><th>Patient</th><th>Condition</th><th>Last visit</th><th>Risk score</th><th></th></tr></thead>
+            <div class="table-scroll">
+            <table><thead><tr><th>Patient</th><th>Condition</th><th>Last visit</th><th>Risk score</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
             <tbody id="myPatientTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>      <section class="panel-view" id="panel-appointments">
@@ -79,29 +82,25 @@
             <button class="btn btn-ghost btn-sm" id="docApptRefresh">↻ Refresh</button>
           </div>
           <div class="panel-body" style="padding-top:0;">
-            <table><thead><tr><th>When</th><th>Patient</th><th>Reason</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+            <div class="table-scroll">
+            <table><thead><tr><th>When</th><th>Patient</th><th>Reason</th><th>Mode</th><th>Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
               <tbody id="doctorApptTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
 
       <section class="panel-view" id="panel-emr">
         <div class="panel">
-          <div class="panel-head"><h3>Electronic Medical Record — Simran Kaur</h3><span class="badge badge-coral">High risk</span></div>
-          <div class="panel-body grid grid-2">
-            <div>
-              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">DIAGNOSIS HISTORY</p>
-              <p>Type 2 Diabetes (2021), Mild hypertension (2023). HbA1c trending upward over last 3 visits.</p>
-              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">ALLERGIES</p>
-              <p>Penicillin</p>
-            </div>
-            <div>
-              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">VITALS — LAST VISIT</p>
-              <div class="grid grid-2">
-                <div class="card" style="padding:16px;"><span class="stat-label">BP</span><h3 style="font-size:1.4rem;">138/88</h3></div>
-                <div class="card" style="padding:16px;"><span class="stat-label">HbA1c</span><h3 style="font-size:1.4rem;">7.8%</h3></div>
+          <div class="panel-head"><h3>Electronic Medical Record</h3><span class="badge badge-slate">Coming soon</span></div>
+          <div class="panel-body">
+            <!-- gate C5: the hard-coded "Simran Kaur" EMR block (diagnosis,
+                 allergies, vitals) is gone — no fake patient record ships. -->
+            <div class="risk-row" style="padding:14px 0;">
+              <div>
+                <strong style="font-size:.9rem;">Select a patient to open their record</strong>
+                <span style="display:block;font-size:.78rem;color:var(--slate-400);">The EMR viewer connects to the records module — patient records will appear here once it is live.</span>
               </div>
-              <button class="btn btn-primary btn-sm mt-16" onclick="ccToast('Note added to record (demo)')">Add clinical note</button>
             </div>
           </div>
         </div>
@@ -113,12 +112,12 @@
           <div class="panel-body">
             <form onsubmit="event.preventDefault(); ccToast('Prescription sent to pharmacy (demo)'); this.reset();">
               <div class="grid grid-2">
-                <div class="field"><label>Patient</label><select><option>Simran Kaur</option><option>Rohan Das</option><option>Vikram Rao</option></select></div>
-                <div class="field"><label>Medicine</label><input type="text" placeholder="e.g. Metformin 500mg" required></div>
-                <div class="field"><label>Dosage</label><input type="text" placeholder="e.g. 1 tablet twice daily"></div>
-                <div class="field"><label>Duration</label><input type="text" placeholder="e.g. 30 days"></div>
+                <div class="field"><label for="rxPatient">Patient</label><select id="rxPatient"><option value="">Loading patients…</option></select></div>
+                <div class="field"><label for="rxMedicine">Medicine</label><input id="rxMedicine" type="text" placeholder="e.g. Metformin 500mg" required></div>
+                <div class="field"><label for="rxDosage">Dosage</label><input id="rxDosage" type="text" placeholder="e.g. 1 tablet twice daily"></div>
+                <div class="field"><label for="rxDuration">Duration</label><input id="rxDuration" type="text" placeholder="e.g. 30 days"></div>
               </div>
-              <div class="field"><label>Notes for pharmacist</label><textarea placeholder="Optional instructions…"></textarea></div>
+              <div class="field"><label for="rxNotes">Notes for pharmacist</label><textarea id="rxNotes" placeholder="Optional instructions…"></textarea></div>
               <button type="submit" class="btn btn-accent">Send to pharmacy</button>
             </form>
           </div>
@@ -170,37 +169,82 @@
   window.ccStartDoctorPolling();
 });</script>
 <script>
-Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-
-new Chart(document.getElementById('consultChart'), {
-  type:'bar',
-  data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat'], datasets:[{ label:'Consultations', data:[7,9,6,8,8,4], backgroundColor:'#2fb8a4', borderRadius:6 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
-});
-
+/* ============ gate C6: chart isolated + guarded ============
+   A blocked Chart.js CDN leaves `window.Chart` undefined — this block no-ops
+   and the dashboard logic below still loads. */
+if(window.Chart){ try{
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
+  new Chart(document.getElementById('consultChart'), {
+    type:'bar',
+    data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat'], datasets:[{ label:'Consultations', data:[7,9,6,8,8,4], backgroundColor:'#2fb8a4', borderRadius:6 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+  });
+}catch(e){} }
+</script>
+<script>
 window.ccLoadDoctorDashboard = async function(user){
-  /* my patients table */
+  const tbodyPatients = document.querySelector('#myPatientTable');
+  const tbodyAppts = document.querySelector('#doctorApptTable');
+  ccRenderState(tbodyPatients, 'loading', '', 5);
+  ccRenderState(tbodyAppts, 'loading', '', 6);
+
+  let patients = [], doctors = [], appts = [];
   try {
-    const tbody = document.querySelector('#myPatientTable');
-    ccRenderState(tbody, 'loading', '', 5);
-    const patients = await ccApi('/api/patients');
-    if(!patients.length){ ccRenderState(tbody, 'empty', 'No patients assigned yet.', 5); }
-    else {
-      tbody.innerHTML = patients.map(p => {
-        const risk = p.risk_score === null || p.risk_score === undefined ? 0 : p.risk_score;
-        return `<tr><td><span class="avatar-sm">${ccEscape(p.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span>${ccEscape(p.name)}</td>
-        <td>${ccEscape(p.condition || '—')}</td><td>—</td>
-        <td><div class="flex items-center gap-12" style="width:120px;"><div class="progress-track w-full"><div class="progress-fill" style="width:${risk}%;background:${risk>70?'#ff6f59':risk>40?'#e0a53c':'#2fb8a4'};"></div></div><span class="mono" style="font-size:.75rem;">${risk}%</span></div></td>
-        <td><button class="btn btn-sm btn-ghost" onclick="ccToast('Opening EMR (demo)')">View EMR</button></td></tr>`;
-      }).join('');
-    }
-  } catch(err){ ccRenderState(document.querySelector('#myPatientTable'), 'error', err.message, 5); }
+    /* one parallel batch feeds the stats, both tables and the rx list */
+    [patients, doctors, appts] = await Promise.all([
+      ccApi('/api/patients?page_size=100'),
+      ccApi('/api/doctors'),
+      ccApi('/api/appointments?page_size=100'),
+    ]);
+  } catch(err){
+    ccRenderState(tbodyPatients, 'error', err.message, 5);
+    ccRenderState(tbodyAppts, 'error', err.message, 6);
+    return;
+  }
+
+  /* ---- gate C5: overview stats / subtitle / badge are API-derived ---- */
+  const todays = appts.filter(a =>
+    (a.status === 'Requested' || a.status === 'Confirmed') &&
+    new Date(a.scheduled_at).toDateString() === new Date().toDateString());
+  const setStat = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+  setStat('statToday', String(todays.length));
+  setStat('statUnderCare', String(patients.length));
+  const self = doctors.find(d => user && d.id === user.id);
+  setStat('statRating', self && self.average_rating != null ? `${self.average_rating}★` : '—');
+  const todayBadge = document.getElementById('docTodayBadge');
+  if(todayBadge){
+    todayBadge.textContent = `● ${todays.length} visit${todays.length === 1 ? '' : 's'} today`;
+    todayBadge.hidden = false;
+    todayBadge.style.display = '';
+  }
+  const subtitle = document.getElementById('docSubtitle');
+  if(subtitle){
+    subtitle.textContent = `${self ? self.department + ' · ' : ''}Today, ${todays.length} appointment${todays.length === 1 ? '' : 's'} scheduled`;
+  }
+  /* gate C5: prescription patient list = real assigned patients */
+  const rxSel = document.getElementById('rxPatient');
+  if(rxSel){
+    rxSel.innerHTML = patients.length
+      ? ['<option value="">Select a patient…</option>']
+          .concat(patients.map(p => `<option value="${ccEscape(p.id)}">${ccEscape(p.name)}</option>`)).join('')
+      : '<option value="">No patients assigned yet</option>';
+  }
+
+  /* my patients table */
+  if(!patients.length){ ccRenderState(tbodyPatients, 'empty', 'No patients assigned yet.', 5); }
+  else {
+    tbodyPatients.innerHTML = patients.map(p => {
+      const risk = p.risk_score === null || p.risk_score === undefined ? 0 : p.risk_score;
+      return `<tr><td><div class="cell-flex"><span class="avatar-sm">${ccEscape(p.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span>${ccEscape(p.name)}</div></td>
+      <td>${ccEscape(p.condition || '—')}</td><td>—</td>
+      <td><div class="flex items-center gap-12" style="width:120px;"><div class="progress-track w-full"><div class="progress-fill" style="width:${risk}%;background:${risk>70?'#ff6f59':risk>40?'#e0a53c':'#2fb8a4'};"></div></div><span class="mono" style="font-size:.75rem;">${risk}%</span></div></td>
+      <td><button class="btn btn-sm btn-ghost" disabled>Coming soon</button></td></tr>`;
+    }).join('');
+  }
 
   /* appointments (status flowing through Requested -> Confirmed/Declined) */
   try {
-    const tbody = document.querySelector('#doctorApptTable');
-    ccRenderState(tbody, 'loading', '', 6);
-    const appts = await ccApi('/api/appointments?page_size=100');
+    const tbody = tbodyAppts;
     const teleBadge = document.getElementById('teleBadge');
     if(teleBadge) teleBadge.textContent = `● ${appts.filter(a => a.mode === 'Telemedicine' && a.status !== 'Declined' && a.status !== 'Cancelled').length} waiting`;
     if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments scheduled.', 6); }
@@ -216,14 +260,18 @@ window.ccLoadDoctorDashboard = async function(user){
         return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || '—')}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td class="doc-appt-actions">${actions}</td></tr>`;
       }).join('');
       tbody.querySelectorAll('button[data-confirm]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Confirmed')));
-      tbody.querySelectorAll('button[data-decline]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Declined')));
+      tbody.querySelectorAll('button[data-decline]').forEach(btn => btn.addEventListener('click', () => confirmDecline(btn)));
     }
-    /* next-up list: first three upcoming */
+    /* next-up list: gate C4 — FUTURE Requested/Confirmed only, soonest first */
     const nextUp = document.getElementById('nextUpList');
     if(nextUp){
-      const upcoming = appts.filter(a => a.status === 'Confirmed' || a.status === 'Requested');
+      const nowMs = Date.now();
+      const upcoming = appts
+        .filter(a => a.status === 'Confirmed' || a.status === 'Requested')
+        .filter(a => new Date(a.scheduled_at).getTime() >= nowMs)
+        .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at));
       if(!upcoming.length){
-        nextUp.innerHTML = '<div class="risk-row" style="padding:12px 0;"><span style="color:var(--slate-400);font-size:.85rem;">Nothing scheduled.</span></div>';
+        nextUp.innerHTML = '<div class="risk-row" style="padding:12px 0;"><span style="color:var(--slate-400);font-size:.85rem;">Nothing upcoming — no past or cancelled visit will be listed here.</span></div>';
       } else {
         nextUp.innerHTML = upcoming.slice(0, 3).map(a => {
           const time = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
@@ -251,6 +299,30 @@ async function settle(btn, status){
     btn.disabled = false;
     ccToast(err.message || 'Could not update the appointment.');
   }
+}
+
+/* gate S3: declining cancels a patient's request — ask first. */
+function confirmDecline(btn){
+  const row = btn.closest('tr');
+  const patient = row ? row.children[1].textContent : 'this patient';
+  const when = row ? row.children[0].textContent : '';
+  ccModalOpen(`
+    <div class="cc-modal-head">
+      <div><h3>Decline this appointment?</h3><p>${ccEscape(patient)} is notified and the slot is freed immediately.</p></div>
+      <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <div class="cc-modal-body">
+      <div class="cc-modal-summary">${ccEscape(when)} · ${ccEscape(patient)}</div>
+    </div>
+    <div class="cc-modal-foot">
+      <button class="btn btn-ghost" data-modal-close>Keep appointment</button>
+      <button class="btn btn-danger" id="declineYes">Yes, decline</button>
+    </div>`);
+  document.getElementById('declineYes').addEventListener('click', async function(){
+    this.disabled = true;
+    await settle(btn, 'Declined');
+    ccModalClose();
+  });
 }
 
 window.ccDoctorAppointmentsLoad = async function(){

@@ -1,10 +1,15 @@
 /* CloudCare — admin dashboard: API-driven tables + demo charts.
    All names/emails come from the API and are HTML-escaped with ccEscape. */
-Chart.defaults.font.family = "'Manrope', sans-serif";
-Chart.defaults.color = '#5b7370';
+/* gate C6: Chart.js setup is guarded AND isolated — if the CDN is blocked
+   every chart block below no-ops while the table loaders keep working. */
+if(window.Chart){ try{
+  Chart.defaults.font.family = "'Manrope', sans-serif";
+  Chart.defaults.color = '#5b7370';
+}catch(e){} }
 const ccTeal = '#2fb8a4', ccCoral = '#ff6f59', ccGold = '#e0a53c';
 
 /* ---------- overview charts ---------- */
+if(window.Chart){ try{
 new Chart(document.getElementById('admissionsChart'), {
   type:'line',
   data:{ labels:['Wk1','Wk2','Wk3','Wk4','Wk5','Wk6','Wk7','Wk8'],
@@ -17,6 +22,51 @@ new Chart(document.getElementById('deptChart'), {
     datasets:[{ data:[28,24,18,16,14], backgroundColor:[ccTeal,ccCoral,ccGold,'#7f938f','#8fe3d8'] }]},
   options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'62%' }
 });
+}catch(e){} }
+
+/* ---------- overview KPIs (gate C5) ----------
+   Real numbers only: role head-counts, the next-7-days appointment list and
+   the invoice totals. Anything without an endpoint stays "—" in the HTML. */
+async function ccLoadAdminKpis(){
+  const set = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+  try {
+    const [summary, week, bills] = await Promise.all([
+      ccApi('/api/users/summary'),
+      ccApi('/api/admin/appointments?within_days=7'),
+      ccApi('/api/bills?page_size=100'),
+    ]);
+    set('kpiPatients', String((summary && summary.by_role && summary.by_role.patient) || 0));
+    set('kpiDoctors', String((summary && summary.by_role && summary.by_role.doctor) || 0));
+    set('kpiAppts', String((week || []).length));
+    const month = new Date().getMonth();
+    const paidMtd = (bills || [])
+      .filter(b => b.status === 'Paid' && new Date(b.created_at).getMonth() === month)
+      .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+    const outstanding = (bills || [])
+      .filter(b => b.status !== 'Paid')
+      .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+    set('kpiRevenue', '₹' + paidMtd.toLocaleString('en-IN'));
+    set('kpiCollected', '₹' + paidMtd.toLocaleString('en-IN'));
+    set('kpiPending', '₹' + outstanding.toLocaleString('en-IN'));
+  } catch(err){ /* KPIs keep their honest "—" */ }
+
+  /* topbar status: a real liveness probe instead of "All systems normal" */
+  const badge = document.getElementById('adminHealthBadge');
+  if(badge){
+    try {
+      const health = await ccApi('/health');
+      const ok = health && health.status === 'ok';
+      badge.textContent = ok ? '● API healthy' : '● API degraded';
+      badge.className = 'badge ' + (ok ? 'badge-mint' : 'badge-coral');
+    } catch(err){
+      badge.textContent = '● API unreachable';
+      badge.className = 'badge badge-coral';
+    }
+    badge.hidden = false;
+    badge.style.display = '';
+  }
+}
+window.ccLoadAdminKpis = ccLoadAdminKpis;
 
 /* ---------- patients panel (API) ---------- */
 async function ccLoadAdminPatients(){
@@ -27,7 +77,7 @@ async function ccLoadAdminPatients(){
     if(!patients.length){ ccRenderState(tbody, 'empty', 'No patients registered yet.', 6); return; }
     tbody.innerHTML = patients.map(p => {
       const risk = p.risk_score === null || p.risk_score === undefined ? 0 : p.risk_score;
-      return `<tr><td><span class="avatar-sm">${ccEscape(p.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span>${ccEscape(p.name)}</td>
+      return `<tr><td><div class="cell-flex"><span class="avatar-sm">${ccEscape(p.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span>${ccEscape(p.name)}</div></td>
       <td>${p.age ?? '—'}</td><td>${ccEscape(p.condition || '—')}</td><td>${ccEscape(p.assigned_doctor_name || 'Unassigned')}</td>
       <td><div class="flex items-center gap-12" style="width:110px;"><div class="progress-track w-full"><div class="progress-fill" style="width:${risk}%;background:${risk>70?ccCoral:risk>40?ccGold:ccTeal};"></div></div><span class="mono" style="font-size:.75rem;">${risk}%</span></div></td>
       <td><span class="badge ${p.status==='Admitted'?'badge-coral':'badge-mint'}">${ccEscape(p.status)}</span></td></tr>`;
@@ -108,6 +158,7 @@ async function ccLoadAdminBills(){
 }
 
 window.ccLoadAdminDashboard = function(){
+  if(window.ccLoadAdminKpis) window.ccLoadAdminKpis();
   ccLoadAdminPatients();
   ccLoadAdminDoctors();
   ccLoadAdminAppointments();
@@ -120,41 +171,48 @@ function ccComingSoon(title, note){
 }
 
 /* ---------- AI console: inventory ---------- */
+if(window.Chart){ try{
 new Chart(document.getElementById('inventoryChart'), {
   type:'bar',
   data:{ labels:['Insulin','Amlodipine','Furosemide','Salbutamol','Oxygen (cyl.)'],
     datasets:[{ label:'Days of stock left', data:[4,6,7,9,11], backgroundColor:(c)=>c.raw<7?ccCoral:ccGold, borderRadius:6 }]},
   options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
 });
+}catch(e){} }
 document.getElementById('reorderList').innerHTML = ccComingSoon(
   'Inventory AI coming soon',
   'Reorder suggestions will appear here once the inventory module is connected.'
 );
 
 /* ---------- AI console: risk ---------- */
+if(window.Chart){ try{
 new Chart(document.getElementById('riskChart'), {
   type:'doughnut',
   data:{ labels:['Low','Medium','High'], datasets:[{ data:[62,26,12], backgroundColor:[ccTeal,ccGold,ccCoral] }]},
   options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'62%' }
 });
+}catch(e){} }
 document.getElementById('riskList').innerHTML = ccComingSoon(
   'AI risk scoring coming soon',
   'Patient risk rankings will appear here once the analytics module is connected.'
 );
 
 /* ---------- AI console: resource forecast ---------- */
+if(window.Chart){ try{
 new Chart(document.getElementById('resourceChart'), {
   type:'line',
   data:{ labels:['Day 2','Day 4','Day 6','Day 8','Day 10','Day 12','Day 14'],
     datasets:[{ label:'ICU occupancy %', data:[71,74,79,84,88,90,93], borderColor:ccCoral, backgroundColor:'rgba(255,111,89,.12)', fill:true, tension:.4 }]},
   options:{ plugins:{legend:{display:false}}, scales:{y:{min:50,max:100}} }
 });
+}catch(e){} }
 document.getElementById('resourceList').innerHTML = ccComingSoon(
   'Capacity forecasting coming soon',
   'Resource recommendations will appear here once the forecasting module is connected.'
 );
 
 /* ---------- reports panel ---------- */
+if(window.Chart){ try{
 new Chart(document.getElementById('reportChart'), {
   type:'bar',
   data:{ labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'],
@@ -164,3 +222,4 @@ new Chart(document.getElementById('reportChart'), {
     ]},
   options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}} }
 });
+}catch(e){} }

@@ -9,9 +9,10 @@
 <link rel="stylesheet" href="assets/css/style.css">
 <style>
   .star-picker{display:flex;gap:6px;font-size:1.8rem;margin-bottom:6px;}
-  .star-picker span{cursor:pointer;color:var(--line);transition:color .15s;}
-  .star-picker span.filled{color:var(--gold-500);}
-  .review-card .stars{color:var(--gold-500);letter-spacing:2px;margin-bottom:10px;}
+  .star-picker button{cursor:pointer;color:var(--slate-400);transition:color .15s;background:none;border:none;padding:0 2px;line-height:1;font-family:inherit;}
+  .star-picker button.filled{color:var(--gold-star, var(--gold-500));}
+  .review-card .stars{color:var(--gold-star, var(--gold-500));letter-spacing:2px;margin-bottom:10px;}
+  .review-card .stars .star-off{color:var(--slate-400);}
   .review-card{position:relative;}
   .restrict-num{font-variant-numeric:tabular-nums;}
   .cc-error-note{color:#c9432c;font-size:.8rem;margin-top:6px;display:none;}
@@ -77,18 +78,23 @@
           <select id="revDoctor" required><option value="">Loading doctors…</option></select>
         </div>
         <div class="field">
-          <label>Your rating</label>
-          <div class="star-picker" id="starPicker">
-            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          <label id="revRatingLabel" for="revStar1">Your rating <span class="sr-only">(choose 1 to 5 stars)</span></label>
+          <!-- gate C11: real radiogroup of buttons — arrow keys + Enter work -->
+          <div class="star-picker" id="starPicker" role="radiogroup" aria-labelledby="revRatingLabel">
+            <button type="button" id="revStar1" role="radio" aria-checked="false" aria-label="1 star" data-v="1">★</button><button type="button" role="radio" aria-checked="false" aria-label="2 stars" data-v="2">★</button><button type="button" role="radio" aria-checked="false" aria-label="3 stars" data-v="3">★</button><button type="button" role="radio" aria-checked="false" aria-label="4 stars" data-v="4">★</button><button type="button" role="radio" aria-checked="false" aria-label="5 stars" data-v="5">★</button>
           </div>
-          <input type="hidden" id="revRating" value="5">
+          <input type="hidden" id="revRating" value="0">
         </div>
         <div class="field">
           <label for="revText">Your review</label>
           <textarea id="revText" placeholder="Between 10 and 500 characters — specifics help other patients." minlength="10" maxlength="500" required></textarea>
           <div class="cc-error-note" id="revTextNote">Please write 10–500 characters.</div>
         </div>
-        <button type="submit" class="btn btn-accent btn-block">Submit review</button>
+        <div class="flex items-center gap-12">
+          <button type="submit" class="btn btn-accent">Submit review</button>
+          <!-- gate C10: a disabled button never sits there silently -->
+          <span id="reviewSubmitNote" class="field-hint" hidden>Sign in as a patient to submit a review.</span>
+        </div>
       </form>
     </div>
   </div>
@@ -155,7 +161,12 @@ const REVIEW_PAGE_SIZE = 9;
 let ccReviewsExpanded = false;
 let ccMyReviews = [];
 
-function starString(n){ return '★★★★★☆☆☆☆☆'.slice(5 - n, 10 - n); }
+function starString(n){
+  /* gate S8: filled stars gold, unfilled stars a visible grey */
+  const on = '★'.repeat(Math.max(0, Math.min(5, n)));
+  const off = '☆'.repeat(5 - Math.max(0, Math.min(5, n)));
+  return `${on}<span class="star-off">${off}</span>`;
+}
 
 function renderReviewCards(items){
   const grid = document.getElementById('reviewGrid');
@@ -178,26 +189,58 @@ function renderReviewCards(items){
 }
 
 /* The API groups reviews by doctor; for the public wall we fetch each
-   doctor's page and flatten. three per doctor until "Show all reviews". */
-async function ccReviewsLoadPage(data){
+   doctor's pages and flatten. gate C2: every count and the button's
+   visibility come from the SUMMED review_count in /api/reviews/summary —
+   never from how many rows this page happened to fetch. */
+const CC_COLLAPSED_PER_DOC = 3;
+
+async function ccReviewsLoadPage(summaries){
   const state = document.getElementById('reviewLoadState');
   const showAllBtn = document.getElementById('showAllBtn');
-  if(!data.length){
+  const withReviews = (summaries || []).filter(s => s.doctor_id && s.review_count > 0);
+  const totalCount = withReviews.reduce((sum, s) => sum + s.review_count, 0);
+
+  if(!totalCount){
+    renderReviewCards([]);
     state.textContent = 'No reviews yet — be the first to tell patients about a doctor.';
+    showAllBtn.style.display = 'none';
     return;
   }
-  /* data = [{doctor_id, average_rating, review_count}] */
-  const all = [];
-  for(const doc of data){
-    try {
-      const page = await ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=1&page_size=${ccReviewsExpanded ? 50 : 3}`);
-      all.push(...page.items);
-    } catch(err){ /* skip this doctor on error */ }
+
+  let all = [];
+  if(ccReviewsExpanded){
+    /* expanded mode: walk pages PER DOCTOR until review_count is reached */
+    const perDoctor = await Promise.all(withReviews.map(async (doc) => {
+      const items = [];
+      let page = 1;
+      while(items.length < doc.review_count){
+        const res = await ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=${page}&page_size=100`);
+        const chunk = (res && res.items) || [];
+        if(!chunk.length) break;
+        items.push(...chunk);
+        if(page >= (res.pages || 1)) break;
+        page += 1;
+      }
+      return items.slice(0, doc.review_count);
+    }));
+    perDoctor.forEach(list => all.push(...list));
+  } else {
+    /* collapsed mode: 3 freshest reviews per doctor, fetched in parallel */
+    const perDoctor = await Promise.all(withReviews.map(doc =>
+      ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=1&page_size=${CC_COLLAPSED_PER_DOC}`)
+        .then(res => (res && res.items) || [])
+        .catch(() => [])
+    ));
+    perDoctor.forEach(list => all.push(...list));
   }
+
   all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  renderReviewCards(all.slice(0, ccReviewsExpanded ? 200 : REVIEW_PAGE_SIZE));
-  state.textContent = ccReviewsExpanded ? `Showing all ${all.length} reviews` : `Showing ${Math.min(all.length, REVIEW_PAGE_SIZE)} of ${all.length}`;
-  showAllBtn.style.display = all.length > REVIEW_PAGE_SIZE ? '' : 'none';
+  const fetched = Math.min(all.length, REVIEW_PAGE_SIZE);
+  renderReviewCards(ccReviewsExpanded ? all : all.slice(0, REVIEW_PAGE_SIZE));
+  state.textContent = ccReviewsExpanded
+    ? `Showing all ${totalCount} reviews`
+    : `Showing ${fetched} of ${totalCount}`;
+  showAllBtn.style.display = (!ccReviewsExpanded && totalCount > fetched) ? '' : 'none';
 }
 
 document.getElementById('showAllBtn').addEventListener('click', async () => {
@@ -208,8 +251,7 @@ document.getElementById('showAllBtn').addEventListener('click', async () => {
 async function ccReviewsReload(){
   try {
     const summaries = await ccApi('/api/reviews/summary');
-    const withReviews = summaries.filter(s => s.review_count > 0);
-    await ccReviewsLoadPage(withReviews);
+    await ccReviewsLoadPage(summaries);
   } catch(err){
     document.getElementById('reviewLoadState').textContent = err.message || 'Could not load reviews.';
   }
@@ -232,44 +274,94 @@ async function ccReviewDoctorsLoad(){
 async function ccReviewAuthState(){
   const el = document.getElementById('reviewAuthState');
   const submitBtn = document.querySelector('#reviewForm button[type="submit"]');
+  const submitNote = document.getElementById('reviewSubmitNote');
+  const setEnabled = (enabled) => {
+    if(submitBtn) submitBtn.disabled = !enabled;
+    /* gate C10: never leave a disabled submit silent — say why, right by it */
+    if(submitNote) submitNote.hidden = enabled;
+  };
   const token = localStorage.getItem('cloudcare_token');
   const session = ccGetSession();
   if(!token || !session || (typeof ccSessionExpired === 'function' && ccSessionExpired())){
     el.innerHTML = '<a href="login.html?next=' + encodeURIComponent('reviews.html') + '" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> as a patient to leave a review.';
-    if(submitBtn) submitBtn.disabled = true;
+    setEnabled(false);
     return;
   }
   try {
-    const user = await ccApi('/api/auth/me');
+    /* gate C16: public page — a revoked token must keep the signed-out
+       state and the sign-in note, never bounce to login.html. */
+    const user = await ccApi('/api/auth/me', { noRedirect: true });
     if(user.role !== 'patient'){
       el.textContent = 'Only patient accounts can write reviews.';
-      if(submitBtn) submitBtn.disabled = true;
+      if(submitNote) submitNote.textContent = 'Patient accounts only.';
+      setEnabled(false);
       return;
     }
-    ccMyReviews = await ccApi('/api/reviews/mine');
+    ccMyReviews = await ccApi('/api/reviews/mine', { noRedirect: true });
     const byDoctor = {};
     ccMyReviews.forEach(r => byDoctor[r.doctor_id] = r);
     window.ccMyReviewByDoctor = byDoctor;
     el.textContent = `Signed in as ${user.name} — a repeat submit for the same doctor updates your review.`;
-    if(submitBtn) submitBtn.disabled = false;
+    if(submitNote) submitNote.textContent = 'Sign in as a patient to submit a review.';
+    setEnabled(true);
   } catch(err){
     el.innerHTML = '<a href="login.html" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> to leave a review.';
-    if(submitBtn) submitBtn.disabled = true;
+    setEnabled(false);
   }
 }
 
-/* -------- star picker -------- */
+/* -------- star picker (gates C11 + S14) --------
+   Keyboard-operable radiogroup: no rating is pre-selected (value 0), hover
+   previews the stars, arrow keys / Enter choose, aria-checked tracks state. */
 const starPicker = document.getElementById('starPicker');
 const revRating = document.getElementById('revRating');
+const starBtns = Array.from(starPicker.querySelectorAll('button[role="radio"]'));
+
 function paintStars(v){
-  starPicker.querySelectorAll('span').forEach(s => s.classList.toggle('filled', +s.dataset.v <= v));
+  starBtns.forEach(b => b.classList.toggle('filled', Number(b.dataset.v) <= v));
 }
-paintStars(5);
-starPicker.querySelectorAll('span').forEach(s => {
-  s.addEventListener('click', () => { revRating.value = s.dataset.v; paintStars(+s.dataset.v); });
+function syncStarChecked(){
+  const current = Number(revRating.value);
+  starBtns.forEach(b => {
+    b.setAttribute('aria-checked', String(Number(b.dataset.v) === current && current > 0));
+    b.tabIndex = (current === 0 ? Number(b.dataset.v) === 1 : Number(b.dataset.v) === current) ? 0 : -1;
+  });
+}
+function selectRating(v){
+  revRating.value = String(v);
+  paintStars(v);
+  syncStarChecked();
+}
+
+paintStars(0);          /* S14: no default rating */
+syncStarChecked();
+
+starBtns.forEach((btn, idx) => {
+  btn.addEventListener('click', () => selectRating(Number(btn.dataset.v)));
+  btn.addEventListener('mouseenter', () => paintStars(Number(btn.dataset.v))); /* hover preview */
+  btn.addEventListener('mouseleave', () => paintStars(Number(revRating.value)));
+  btn.addEventListener('keydown', (e) => {
+    let next = null;
+    if(e.key === 'ArrowRight' || e.key === 'ArrowUp') next = Math.min(idx + 1, starBtns.length - 1);
+    else if(e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = Math.max(idx - 1, 0);
+    else if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); selectRating(Number(btn.dataset.v)); btn.focus(); return; }
+    if(next !== null){
+      e.preventDefault();
+      selectRating(Number(starBtns[next].dataset.v));
+      starBtns[next].focus();
+    }
+  });
 });
 
 /* -------- submit / edit -------- */
+const revTextInput = document.getElementById('revText');
+const revTextNote = document.getElementById('revTextNote');
+/* gate S14: the length note clears the moment the text becomes valid */
+revTextInput.addEventListener('input', () => {
+  const len = revTextInput.value.trim().length;
+  if(len >= 10 && len <= 500) revTextNote.classList.remove('show');
+});
+
 document.getElementById('reviewForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const textNote = document.getElementById('revTextNote');
@@ -283,6 +375,7 @@ document.getElementById('reviewForm').addEventListener('submit', async (e) => {
   }
   textNote.classList.remove('show');
   if(!doctorId){ ccToast('Choose a doctor first.'); return; }
+  if(rating < 1){ ccToast('Pick a star rating first.'); starBtns[0].focus(); return; }
 
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
@@ -293,8 +386,9 @@ document.getElementById('reviewForm').addEventListener('submit', async (e) => {
     });
     const wasEdit = window.ccMyReviewByDoctor && window.ccMyReviewByDoctor[doctorId];
     ccToast(wasEdit ? 'Review updated — thanks!' : 'Thanks — your review is live!');
-    e.target.reset();
-    paintStars(5);
+    e.target.reset();      /* hidden input returns to its default value="0" */
+    paintStars(0);         /* gate S14: never leave a pre-selected rating */
+    syncStarChecked();
     await ccReviewsReload();
     await ccReviewAuthState();
   } catch(err){

@@ -88,7 +88,15 @@ html[data-theme="dark"]{
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; }
+
+/* gate C3: the HTML `hidden` attribute must always win over component
+display rules (badges, panels), whatever specificity they carry. */
+[hidden]{ display:none !important; }
+
+/* gate S19: smooth scrolling is opt-in — motion-sensitive users get "auto". */
+@media (prefers-reduced-motion: no-preference){
+  html{ scroll-behavior:smooth; }
+}
 body{
   margin:0;
   font-family:var(--font-body);
@@ -220,6 +228,13 @@ section{ padding:76px 0; }
 .btn-ghost:hover{ border-color:var(--mint-300); background:var(--mint-50); }
 .btn-sm{ padding:8px 16px; font-size:.8rem; }
 .btn-block{ width:100%; }
+/* gate C10: a disabled button must look disabled. */
+.btn:disabled{ opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+/* gate C9: destructive action colour for confirm dialogs. */
+.btn-danger{ background:#c9432c; color:#fff; box-shadow:0 10px 24px -10px rgba(201,67,44,.5); }
+.btn-danger:hover{ background:#ad3520; transform:translateY(-1px); }
+html[data-theme="dark"] .btn-danger{ background:#e2553c; color:#0a1f1c; }
+html[data-theme="dark"] .btn-danger:hover{ background:#ff7a5c; }
 
 html[data-theme="dark"] .btn-primary{ background:var(--mint-300); color:var(--teal-950); box-shadow:0 10px 24px -10px rgba(45,230,196,.4); }
 html[data-theme="dark"] .btn-primary:hover{ background:var(--mint-200); }
@@ -328,6 +343,9 @@ footer{
 }
 footer .container{ display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr; gap:32px; padding-bottom:44px; }
 footer h4{ color:#fff; font-family:var(--font-body); font-size:.82rem; letter-spacing:.02em; margin-bottom:14px; }
+/* gate C15: the footer brand was inheriting a low-contrast ink colour on
+   the near-black footer surface — force white (contrast check: 14.9:1). */
+footer .brand{ color:#fff; }
 footer p{ color:var(--mist); opacity:.78; font-size:.9rem; margin-bottom:9px; max-width:none; }
 footer a:hover{ opacity:.7; }
 .foot-bottom{
@@ -355,15 +373,35 @@ footer a:hover{ opacity:.7; }
 
 .field{ margin-bottom:18px; }
 .field label{ display:block; font-size:.82rem; font-weight:700; color:var(--ink); margin-bottom:7px; }
+/* gate C14/S18: label-styled text that describes a non-form widget (slot grid) */
+.field-label{ display:block; font-size:.82rem; font-weight:700; color:var(--ink); margin-bottom:7px; }
+/* gates C10/S6/S18: small helper copy under fields and beside disabled buttons */
+.field-hint{ font-size:.8rem; color:var(--slate-400); margin:0; }
 .field input, .field select, .field textarea{
   width:100%; font-family:var(--font-body); font-size:.92rem; color:var(--slate-900);
   border:1.5px solid var(--line); border-radius:var(--radius-sm);
   padding:11px 14px; background:var(--card-bg-solid); color:var(--slate-900); transition:border-color .15s, box-shadow .15s;
 }
 .field input:focus, .field select:focus, .field textarea:focus{
-  outline:none; border-color:var(--mint-300); box-shadow:0 0 0 4px rgba(79,209,197,.16);
+  /* gate C11: strengthened ring (outline stays suppressed here so the glow
+     is not doubled — the pair below is >= 3:1 against the card). */
+  outline:none; border-color:var(--mint-300);
+  box-shadow:0 0 0 4px rgba(79,209,197,.28), 0 0 0 7px rgba(10,47,43,.22);
 }
 .field textarea{ min-height:96px; resize:vertical; }
+
+/* gate C11: one obvious keyboard focus ring everywhere. */
+a:focus-visible, button:focus-visible, [role="radio"]:focus-visible,
+.chip-tab:focus-visible, .slot-btn:focus-visible, .cc-suggestion-btn:focus-visible,
+.theme-toggle:focus-visible, .side-nav a:focus-visible, .nav-toggle:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible{
+  outline:3px solid var(--mint-300); outline-offset:2px;
+}
+/* gate S18: text for screen readers only (empty table headers, group labels). */
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
 
 /* ---------- show-password toggle ---------- */
 .pw-wrap{ position:relative; }
@@ -413,8 +451,11 @@ html[data-theme="dark"] .chip-tab.active{ background:var(--mint-300); border-col
   position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px);
   background:var(--teal-950); color:#fff; font-size:.86rem; font-weight:600;
   padding:13px 22px; border-radius:100px; box-shadow:var(--shadow-lg);
-  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:999;
+  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  /* gate C7: must sit ABOVE the modal overlay (z-index 1000). */
+  z-index:1100;
 }
+html[data-theme="dark"] .cc-toast{ border:1px solid rgba(255,255,255,.28); }
 .cc-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
 /* ---------- modal ---------- */
@@ -529,11 +570,22 @@ html[data-theme="dark"] .chip-tab.active{ background:var(--mint-300); border-col
 .panel-head h3{ font-size:1.05rem; margin:0; }
 .panel-body{ padding:22px 24px; }
 
+/* gate C12: every table is wrapped in .table-scroll so narrow screens can
+   scroll horizontally instead of clipping the last column. */
+.table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table-scroll table{ min-width:100%; }
+
 table{ width:100%; border-collapse:collapse; }
 thead th{ text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--slate-400); padding:12px 24px; border-bottom:1px solid var(--cloud-100); }
 tbody td{ padding:14px 24px; font-size:.88rem; border-bottom:1px solid var(--cloud-100); vertical-align:middle; }
 tbody tr:last-child td{ border-bottom:none; }
-tbody td:first-child{ display:flex; align-items:center; gap:10px; font-weight:600; }
+/* gate C8: no more display:flex on td:first-child (it broke colspan state
+   rows). Avatar + name pairs now wrap their own inner .cell-flex div. */
+tbody td:first-child{ font-weight:600; }
+.cell-flex{ display:flex; align-items:center; gap:10px; }
+/* gate C8: loading / empty / error rows span the full width and centre. */
+tbody .cc-state-cell{ text-align:center; padding:28px; color:var(--slate-400); font-weight:500; }
+tbody .cc-state-cell.cc-state-error{ color:#c9432c; }
 
 .progress-track{ height:7px; border-radius:100px; background:var(--cloud-100); overflow:hidden; }
 .progress-fill{ height:100%; border-radius:100px; }
@@ -616,16 +668,35 @@ html.theme-transition *{
   .grid-3{ grid-template-columns:repeat(2,1fr); }
   .grid-2{ grid-template-columns:1fr; }
   footer .container{ grid-template-columns:repeat(2,1fr); }
-  .dash-sidebar{ position:fixed; left:-260px; z-index:60; transition:left .25s ease; box-shadow:var(--shadow-lg); }
-  .dash-sidebar.open{ left:0; }
+  /* gate C11: off-canvas sidebar is OUT of the tab order while closed —
+     visibility flips back after the slide-out finishes (delay = transition). */
+  .dash-sidebar{
+    position:fixed; left:-260px; z-index:60; box-shadow:var(--shadow-lg);
+    transition:left .25s ease, visibility 0s linear .25s;
+    visibility:hidden;
+  }
+  .dash-sidebar.open{ left:0; visibility:visible; transition:left .25s ease, visibility 0s linear 0s; }
   .dash-body{ padding:24px 18px 50px; }
   .dash-topbar{ padding:18px; }
 }
 @media (max-width: 720px){
+  /* gate C13: mobile marketing nav is class-driven (.nav-open on .site-nav),
+     never inline styles. Desktop is untouched (rules live in this query). */
+  .site-nav .container{ flex-wrap:wrap; }
+  .nav-toggle{ display:flex; order:1; margin-left:auto; }
   .nav-links, .nav-cta{ display:none; }
-  .nav-toggle{ display:flex; }
+  .site-nav.nav-open .nav-links{
+    display:flex; order:2; flex-direction:column; gap:4px;
+    width:100%; margin:0; padding:12px 0 4px; border-top:1px solid var(--line);
+  }
+  .site-nav.nav-open .nav-cta{
+    display:flex; order:3; flex-direction:column; align-items:stretch; gap:10px;
+    width:100%; padding:4px 0 14px;
+  }
   .grid-4,.grid-3{ grid-template-columns:1fr; }
   footer .container{ grid-template-columns:1fr; }
   section{ padding:52px 0; }
   .auth-card{ padding:30px 24px; }
+  /* gate S15: 16px prevents iOS Safari from zooming focused fields. */
+  .field input, .field select, .field textarea{ font-size:16px; }
 }

@@ -35,17 +35,17 @@
       </div>
     </div>
     <nav class="side-nav" id="sideNav">
-      <a data-panel="overview" class="active"><span class="ic">📊</span>Overview</a>
-      <a data-panel="patients"><span class="ic">🧑‍⚕️</span>Patients</a>
-      <a data-panel="doctors"><span class="ic">🩺</span>Doctors &amp; Staff</a>
-      <a data-panel="accounts"><span class="ic">👥</span>Accounts</a>
-      <a data-panel="specialties"><span class="ic">🏷️</span>Specialties</a>
-      <a data-panel="appointments"><span class="ic">📅</span>Appointments</a>
-      <a data-panel="reviews"><span class="ic">⭐</span>Reviews</a>
-      <a data-panel="billing"><span class="ic">💳</span>Billing</a>
-      <a data-panel="ai-console"><span class="ic">🤖</span>AI Agent Console</a>
-      <a data-panel="reports"><span class="ic">📈</span>Reports</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">📊</span><span class="lbl">Overview</span></a>
+      <a data-panel="patients" href="#panel-patients"><span class="ic">🧑‍⚕️</span><span class="lbl">Patients</span></a>
+      <a data-panel="doctors" href="#panel-doctors"><span class="ic">🩺</span><span class="lbl">Doctors &amp; Staff</span></a>
+      <a data-panel="accounts" href="#panel-accounts"><span class="ic">👥</span><span class="lbl">Accounts</span></a>
+      <a data-panel="specialties" href="#panel-specialties"><span class="ic">🏷️</span><span class="lbl">Specialties</span></a>
+      <a data-panel="appointments" href="#panel-appointments"><span class="ic">📅</span><span class="lbl">Appointments</span></a>
+      <a data-panel="reviews" href="#panel-reviews"><span class="ic">⭐</span><span class="lbl">Reviews</span></a>
+      <a data-panel="billing" href="#panel-billing"><span class="ic">💳</span><span class="lbl">Billing</span></a>
+      <a data-panel="ai-console" href="#panel-ai-console"><span class="ic">🤖</span><span class="lbl">AI Agent Console</span></a>
+      <a data-panel="reports" href="#panel-reports"><span class="ic">📈</span><span class="lbl">Reports</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot">
       <a data-logout href="#"><span class="ic">↩</span>Sign out</a>
@@ -60,7 +60,7 @@
         <p class="sub">CloudCare · Hospital-wide control center</p>
       </div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint">● All systems normal</span>
+        <span class="badge badge-mint" id="adminHealthBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>AD</div>
       </div>
     </div>
@@ -70,31 +70,32 @@
       <!-- ===== OVERVIEW ===== -->
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
+          <!-- gate C5: every KPI starts at "—" and is filled by ccLoadAdminKpis(). -->
           <div class="stat-card reveal in">
-            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">🧑‍⚕️</div><span class="stat-trend up">▲ 4.2%</span></div>
-            <h3>4,812</h3><span class="stat-label">Total patients</span>
+            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">🧑‍⚕️</div></div>
+            <h3 id="kpiPatients">—</h3><span class="stat-label">Total patients</span>
           </div>
           <div class="stat-card reveal in">
-            <div class="stat-top"><div class="stat-icon" style="background:var(--coral-100);">🩺</div><span class="stat-trend up">▲ 1.1%</span></div>
-            <h3>186</h3><span class="stat-label">Active doctors</span>
+            <div class="stat-top"><div class="stat-icon" style="background:var(--coral-100);">🩺</div></div>
+            <h3 id="kpiDoctors">—</h3><span class="stat-label">Active doctors</span>
           </div>
           <div class="stat-card reveal in">
-            <div class="stat-top"><div class="stat-icon" style="background:#fbf1dc;">📅</div><span class="stat-trend up">▲ 8.6%</span></div>
-            <h3>923</h3><span class="stat-label">Appointments this week</span>
+            <div class="stat-top"><div class="stat-icon" style="background:#fbf1dc;">📅</div></div>
+            <h3 id="kpiAppts">—</h3><span class="stat-label">Appointments (next 7 days)</span>
           </div>
           <div class="stat-card reveal in">
-            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">💰</div><span class="stat-trend down">▼ 2.3%</span></div>
-            <h3>₹41.2L</h3><span class="stat-label">Revenue (MTD)</span>
+            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">💰</div></div>
+            <h3 id="kpiRevenue">—</h3><span class="stat-label">Paid invoices (MTD)</span>
           </div>
         </div>
 
         <div class="grid grid-2 mt-24">
           <div class="panel reveal in">
-            <div class="panel-head"><h3>Patient admissions — last 8 weeks</h3></div>
+            <div class="panel-head"><h3>Patient admissions — last 8 weeks</h3><span class="badge badge-slate">Sample data</span></div>
             <div class="panel-body"><canvas id="admissionsChart" height="200"></canvas></div>
           </div>
           <div class="panel reveal in">
-            <div class="panel-head"><h3>Department load</h3></div>
+            <div class="panel-head"><h3>Department load</h3><span class="badge badge-slate">Sample data</span></div>
             <div class="panel-body"><canvas id="deptChart" height="200"></canvas></div>
           </div>
         </div>
@@ -102,23 +103,25 @@
         <div class="panel mt-24 reveal in">
           <div class="panel-head">
             <h3>AI agents — live signal</h3>
-            <a data-panel-link="ai-console" class="btn btn-ghost btn-sm">Open console →</a>
+            <a data-panel-link="ai-console" href="#panel-ai-console" class="btn btn-ghost btn-sm">Open console →</a>
           </div>
           <div class="panel-body grid grid-3">
+            <!-- gate C5: the old "12 SKUs / 37 high-risk / ICU at 88%" numbers
+                 were invented — until the agents ship, they honestly read "—". -->
             <div class="ai-card">
-              <span class="ai-tag">Inventory</span>
-              <h3 style="font-size:1.1rem;">12 SKUs at risk</h3>
-              <p style="font-size:.85rem;">Reorder drafts ready for review.</p>
+              <span class="ai-tag">Inventory</span> <span class="badge badge-slate">Coming soon</span>
+              <h3 style="font-size:1.1rem;">—</h3>
+              <p style="font-size:.85rem;">Reorder drafts will appear here once the inventory agent is connected.</p>
             </div>
             <div class="ai-card coral">
-              <span class="ai-tag">Health risk</span>
-              <h3 style="font-size:1.1rem;">37 high-risk patients</h3>
-              <p style="font-size:.85rem;">Flagged this week for follow-up.</p>
+              <span class="ai-tag">Health risk</span> <span class="badge badge-slate">Coming soon</span>
+              <h3 style="font-size:1.1rem;">—</h3>
+              <p style="font-size:.85rem;">Flagged patients will appear here once the risk agent is connected.</p>
             </div>
             <div class="ai-card gold">
-              <span class="ai-tag">Resource forecast</span>
-              <h3 style="font-size:1.1rem;">ICU at 88% in 6 days</h3>
-              <p style="font-size:.85rem;">Recommend adding 2 float nurses.</p>
+              <span class="ai-tag">Resource forecast</span> <span class="badge badge-slate">Coming soon</span>
+              <h3 style="font-size:1.1rem;">—</h3>
+              <p style="font-size:.85rem;">Capacity forecasts will appear here once the forecasting agent is connected.</p>
             </div>
           </div>
         </div>
@@ -130,13 +133,14 @@
           <div class="panel-head">
             <h3>Patient directory</h3>
             <input type="search" placeholder="Search patients…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
-          </div>
-          <div class="panel-body" style="padding-top:0;">
-            <table>
-              <thead><tr><th>Patient</th><th>Age</th><th>Condition</th><th>Doctor</th><th>Risk</th><th>Status</th></tr></thead>
-              <tbody id="patientTable"></tbody>
-            </table>
-          </div>
+          </div>            <div class="panel-body" style="padding-top:0;">
+              <div class="table-scroll">
+              <table>
+                <thead><tr><th>Patient</th><th>Age</th><th>Condition</th><th>Doctor</th><th>Risk</th><th>Status</th></tr></thead>
+                <tbody id="patientTable"></tbody>
+              </table>
+              </div>
+            </div>
         </div>
       </section>
 
@@ -148,10 +152,12 @@
             <button class="btn btn-ghost btn-sm" id="docManageToggle">Manage shifts &amp; leaves</button>
           </div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table>
-              <thead><tr><th>Name</th><th>Department</th><th>Email</th><th>Shifts</th><th>Rating</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Department</th><th>Email</th><th>Shifts</th><th>Rating</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
               <tbody id="adminDoctorTable"></tbody>
             </table>
+            </div>
           </div>
         </div>
         <div class="grid grid-3" id="doctorGrid" style="display:none;"></div>
@@ -188,10 +194,12 @@
               </select>
             </div>
             <div class="panel-body" style="padding-top:0;">
+              <div class="table-scroll">
               <table>
-                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
                 <tbody id="accountTable"></tbody>
               </table>
+              </div>
             </div>
           </div>
           <div class="panel">
@@ -238,10 +246,12 @@
             </select>
           </div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table>
               <thead><tr><th>When</th><th>Patient</th><th>Doctor</th><th>Department</th><th>Mode</th><th>Status</th></tr></thead>
               <tbody id="apptTable"></tbody>
             </table>
+            </div>
           </div>
         </div>
       </section>
@@ -251,10 +261,12 @@
         <div class="panel reveal in">
           <div class="panel-head"><h3>Review moderation</h3><span class="badge badge-slate">Removal is permanent</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table>
-              <thead><tr><th>Doctor</th><th>Author</th><th>Rating</th><th>Review</th><th></th></tr></thead>
+              <thead><tr><th>Doctor</th><th>Author</th><th>Rating</th><th>Review</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
               <tbody id="adminReviewTable"></tbody>
             </table>
+            </div>
           </div>
         </div>
       </section>
@@ -262,17 +274,19 @@
       <!-- ===== BILLING ===== -->
       <section class="panel-view" id="panel-billing">
         <div class="grid grid-3 mb-0">
-          <div class="stat-card"><h3>₹41.2L</h3><span class="stat-label">Collected (MTD)</span></div>
-          <div class="stat-card"><h3>₹6.8L</h3><span class="stat-label">Pending invoices</span></div>
-          <div class="stat-card"><h3>94%</h3><span class="stat-label">Claims approved</span></div>
+          <div class="stat-card"><h3 id="kpiCollected">—</h3><span class="stat-label">Collected (MTD)</span></div>
+          <div class="stat-card"><h3 id="kpiPending">—</h3><span class="stat-label">Outstanding invoices</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Claims approved</span><div><span class="badge badge-slate">Coming soon</span></div></div>
         </div>
         <div class="panel mt-24 reveal in">
           <div class="panel-head"><h3>Recent invoices</h3></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table>
               <thead><tr><th>Invoice</th><th>Patient</th><th>Amount</th><th>Status</th></tr></thead>
               <tbody id="billTable"></tbody>
             </table>
+            </div>
           </div>
         </div>
       </section>
@@ -283,10 +297,12 @@
           <div class="panel reveal in" style="margin-bottom:24px;">
             <div class="panel-head"><h3>Specialties</h3></div>
             <div class="panel-body" style="padding-top:0;">
+              <div class="table-scroll">
               <table>
-                <thead><tr><th>Name</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
                 <tbody id="specialtyTable"></tbody>
               </table>
+              </div>
             </div>
           </div>
           <div class="panel">
@@ -318,7 +334,7 @@
         <div class="agent-view active" data-agent-view="inventory">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-coral">12 at risk</span></div>
+              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-slate">Sample data</span></div>
               <div class="panel-body"><canvas id="inventoryChart" height="220"></canvas></div>
             </div>
             <div class="panel">
@@ -331,7 +347,7 @@
         <div class="agent-view" data-agent-view="risk" style="display:none;">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>Risk distribution</h3></div>
+              <div class="panel-head"><h3>Risk distribution</h3><span class="badge badge-slate">Sample data</span></div>
               <div class="panel-body"><canvas id="riskChart" height="220"></canvas></div>
             </div>
             <div class="panel">
@@ -344,7 +360,7 @@
         <div class="agent-view" data-agent-view="resource" style="display:none;">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>14-day bed &amp; ICU forecast</h3></div>
+              <div class="panel-head"><h3>14-day bed &amp; ICU forecast</h3><span class="badge badge-slate">Sample data</span></div>
               <div class="panel-body"><canvas id="resourceChart" height="220"></canvas></div>
             </div>
             <div class="panel">
@@ -358,7 +374,7 @@
       <!-- ===== REPORTS ===== -->
       <section class="panel-view" id="panel-reports">
         <div class="panel reveal in">
-          <div class="panel-head"><h3>Monthly performance report</h3><button class="btn btn-ghost btn-sm" onclick="ccToast('Report exported (demo)')">Export PDF</button></div>
+          <div class="panel-head"><h3>Monthly performance report</h3><span class="badge badge-slate">Sample data</span><button class="btn btn-ghost btn-sm" onclick="ccToast('Report exported (demo)')">Export PDF</button></div>
           <div class="panel-body"><canvas id="reportChart" height="220"></canvas></div>
         </div>
       </section>

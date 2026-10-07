@@ -23,15 +23,15 @@
       <div><strong data-user-name></strong><span data-user-role>Patient</span></div>
     </div>
     <nav class="side-nav">
-      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
-      <a data-panel="book"><span class="ic">📅</span>Book Appointment</a>
-      <a data-panel="appointments"><span class="ic">🗓️</span>My Appointments</a>
-      <a data-panel="records"><span class="ic">📋</span>Health Records</a>
-      <a data-panel="prescriptions"><span class="ic">💊</span>Prescriptions</a>
-      <a data-panel="telemedicine"><span class="ic">🎥</span>Telemedicine</a>
-      <a data-panel="risk"><span class="ic">❤️</span>My Risk Score</a>
-      <a data-panel="billing"><span class="ic">💳</span>Billing</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">🏠</span><span class="lbl">Overview</span></a>
+      <a data-panel="book" href="#panel-book"><span class="ic">📅</span><span class="lbl">Book Appointment</span></a>
+      <a data-panel="appointments" href="#panel-appointments"><span class="ic">🗓️</span><span class="lbl">My Appointments</span></a>
+      <a data-panel="records" href="#panel-records"><span class="ic">📋</span><span class="lbl">Health Records</span></a>
+      <a data-panel="prescriptions" href="#panel-prescriptions"><span class="ic">💊</span><span class="lbl">Prescriptions</span></a>
+      <a data-panel="telemedicine" href="#panel-telemedicine"><span class="ic">🎥</span><span class="lbl">Telemedicine</span></a>
+      <a data-panel="risk" href="#panel-risk"><span class="ic">❤️</span><span class="lbl">My Risk Score</span></a>
+      <a data-panel="billing" href="#panel-billing"><span class="ic">💳</span><span class="lbl">Billing</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
   </aside>
@@ -40,7 +40,7 @@
     <div class="dash-topbar">
       <div><h1 id="topbarTitle">Overview</h1><p class="sub">Welcome back — here's your health at a glance</p></div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint" id="visitBadge" hidden>● Loading…</span>
+        <span class="badge badge-mint" id="visitBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>PT</div>
       </div>
     </div>
@@ -49,10 +49,12 @@
 
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
-          <div class="stat-card"><h3>1</h3><span class="stat-label">Upcoming appointment</span></div>
-          <div class="stat-card"><h3>3</h3><span class="stat-label">Active prescriptions</span></div>
-          <div class="stat-card"><h3>68%</h3><span class="stat-label">Health risk score</span></div>
-          <div class="stat-card"><h3>₹6,750</h3><span class="stat-label">Outstanding balance</span></div>
+          <!-- gate C5: every number below is either API-derived (filled in by
+               ccLoadPatientDashboard) or an honest "—" with a tag. -->
+          <div class="stat-card"><h3 id="statUpcoming">—</h3><span class="stat-label">Upcoming appointments</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Active prescriptions</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3 id="statRisk">—</h3><span class="stat-label">Health risk score</span></div>
+          <div class="stat-card"><h3 id="statBalance">—</h3><span class="stat-label">Outstanding balance</span></div>
         </div>
 
         <div class="grid grid-2 mt-24">
@@ -61,7 +63,7 @@
             <div class="panel-body" id="upcomingApptCard" style="color:var(--slate-400);text-align:center;padding:18px 0;font-size:.85rem;">Loading your next appointment…</div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>HbA1c trend</h3></div>
+            <div class="panel-head"><h3>HbA1c trend</h3><span class="badge badge-slate">Sample data</span></div>
             <div class="panel-body"><canvas id="vitalsChart" height="200"></canvas></div>
           </div>
         </div>
@@ -71,6 +73,8 @@
         <div class="panel" style="max-width:720px;">
           <div class="panel-head"><h3>Book a new appointment</h3><span class="badge badge-slate">30-minute slots · IST</span></div>
           <div class="panel-body">
+            <!-- gate C14: slots, reason and submit now live INSIDE #bookForm
+                 so reportValidity() actually enforces the required fields. -->
             <form id="bookForm">
               <div class="grid grid-2">
                 <div class="field"><label for="bookSpecialty">Specialty</label>
@@ -87,21 +91,21 @@
                   <select id="bookMode"><option>In-person</option><option>Telemedicine</option></select>
                 </div>
               </div>
+
+              <div class="field" style="margin-top:6px;">
+                <p class="field-label">Available times <span style="color:var(--slate-400);font-weight:600;">(Morning 06:00–14:00 · Evening 14:00–22:00 by default)</span></p>
+                <div id="slotGrid" class="slot-grid"><span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see free slots.</span></div>
+              </div>
+
+              <div class="field"><label for="bookReason">Reason for visit</label>
+                <textarea id="bookReason" placeholder="Briefly describe your symptoms…" maxlength="500" required></textarea>
+              </div>
+
+              <div class="flex gap-12 mt-8">
+                <button type="submit" class="btn btn-accent" id="bookSubmit">Request appointment</button>
+                <span id="bookHint" style="align-self:center;font-size:.82rem;color:var(--slate-400);">Slots refresh automatically after each change.</span>
+              </div>
             </form>
-
-            <div class="field" style="margin-top:6px;">
-              <label>Available times <span style="color:var(--slate-400);font-weight:600;">(Morning 06:00–14:00 · Evening 14:00–22:00 by default)</span></label>
-              <div id="slotGrid" class="slot-grid"><span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see free slots.</span></div>
-            </div>
-
-            <div class="field"><label for="bookReason">Reason for visit</label>
-              <textarea id="bookReason" placeholder="Briefly describe your symptoms…" maxlength="500" required></textarea>
-            </div>
-
-            <div class="flex gap-12 mt-8">
-              <button type="button" class="btn btn-accent" id="bookSubmit">Request appointment</button>
-              <span id="bookHint" style="align-self:center;font-size:.82rem;color:var(--slate-400);">Slots refresh automatically after each change.</span>
-            </div>
             <div id="suggestBox" class="cc-suggest-box" style="display:none;"></div>
           </div>
         </div>
@@ -111,10 +115,12 @@
         <div class="panel">
           <div class="panel-head"><h3>My appointments</h3><span class="badge badge-slate">Requested → Confirmed · Cancel anytime</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table>
-              <thead><tr><th>When</th><th>Doctor</th><th>Department</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>When</th><th>Doctor</th><th>Department</th><th>Mode</th><th>Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
               <tbody id="myApptTable"></tbody>
             </table>
+            </div>
           </div>
         </div>
       </section>
@@ -161,11 +167,13 @@
         <div class="grid grid-2">
           <div class="ai-card coral">
             <span class="ai-tag">AI Health Risk</span>
-            <h3 style="font-size:2rem;">68% — Elevated</h3>
-            <p>Primarily driven by rising HbA1c and mild hypertension trend over the last 3 visits.</p>
+            <!-- gate C5: no invented "68% — Elevated"; the score is written by
+                 ccLoadPatientDashboard from /api/patients/me, or stays "—". -->
+            <h3 style="font-size:2rem;" id="riskScoreHeading">—</h3>
+            <p>Your score is recalculated by the AI risk agent from your own records after every visit.</p>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>What's driving your score</h3></div>
+            <div class="panel-head"><h3>What's driving your score</h3><span class="badge badge-slate">Sample data</span></div>
             <div class="panel-body" style="padding-top:8px;">
               <div class="risk-row"><span>HbA1c trend</span><span class="badge badge-coral">High impact</span></div>
               <div class="risk-row"><span>Blood pressure</span><span class="badge badge-gold">Medium impact</span></div>
@@ -175,7 +183,7 @@
           </div>
         </div>
         <div class="panel mt-24">
-          <div class="panel-head"><h3>Personalized recommendations</h3></div>
+          <div class="panel-head"><h3>Personalized recommendations</h3><span class="badge badge-slate">Sample data</span></div>
           <div class="panel-body grid grid-3">
             <div class="card" style="padding:18px;"><strong>🥗 Diet</strong><p class="mt-8 mb-0" style="font-size:.85rem;">Reduce refined carbs; favour high-fibre meals.</p></div>
             <div class="card" style="padding:18px;"><strong>🏃 Activity</strong><p class="mt-8 mb-0" style="font-size:.85rem;">Add 20 minutes of brisk walking, 5 days a week.</p></div>
@@ -229,11 +237,12 @@
         <div class="panel">
           <div class="panel-head"><h3>Billing history</h3></div>
           <div class="panel-body" style="padding-top:0;">
-            <table><thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              <tr id="invRow-2293"><td class="mono">INV-2293</td><td>Lab panel — HbA1c</td><td class="mono">₹6,750</td><td data-inv-status><span class="badge badge-gold">Pending</span></td><td data-inv-action><button class="btn btn-sm btn-accent" onclick="openPaymentModal('INV-2293','Lab panel — HbA1c','6,750')">Pay now</button></td></tr>
-              <tr><td class="mono">INV-2187</td><td>Consultation — Cardiology</td><td class="mono">₹1,500</td><td><span class="badge badge-mint">Paid</span></td><td>—</td></tr>
-            </tbody></table>
+            <!-- gate C5: static INV-2293 / INV-2187 demo rows removed — the
+                 tbody is filled from GET /api/bills (loading → rows/empty/error). -->
+            <div class="table-scroll">
+            <table><thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody id="billTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -286,13 +295,19 @@
   });
 });</script>
 <script>
-Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
-new Chart(document.getElementById('vitalsChart'), {
-  type:'line',
-  data:{ labels:['Jan','Mar','May','Jul','Aug'], datasets:[{ label:'HbA1c %', data:[6.9,7.1,7.3,7.6,7.8], borderColor:'#ff6f59', backgroundColor:'rgba(255,111,89,.1)', fill:true, tension:.4 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{suggestedMin:6,suggestedMax:9}}}
-});
-
+/* ============ gate C6: Chart.js in its OWN script block ============
+   If the CDN is blocked, `window.Chart` is undefined and this block no-ops.
+   Booking, tables and API logic live in the next block, so they survive. */
+if(window.Chart){ try{
+  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
+  new Chart(document.getElementById('vitalsChart'), {
+    type:'line',
+    data:{ labels:['Jan','Mar','May','Jul','Aug'], datasets:[{ label:'HbA1c %', data:[6.9,7.1,7.3,7.6,7.8], borderColor:'#ff6f59', backgroundColor:'rgba(255,111,89,.1)', fill:true, tension:.4 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{suggestedMin:6,suggestedMax:9}}}
+  });
+}catch(e){ /* chart is cosmetic — never break the page over it */ } }
+</script>
+<script>
 /* ================= Booking (gates 1b/3/4/5/6) =================
    Specialty -> doctor -> date -> free slots (30-min, IST clinic rules served
    by the API). 409 responses render up to 5 suggested free slots inline.
@@ -365,7 +380,7 @@ window.ccInitPatientBooking = function(user){
     renderSlots([]);
   });
 
-  dateInput.min = new Date().toISOString().slice(0, 10);
+  dateInput.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
   dateInput.addEventListener('change', () => renderSlots([]));
 
   function slotLabel(s){
@@ -413,9 +428,10 @@ window.ccInitPatientBooking = function(user){
     return `${dateStr}T${hhmmLabel}:00+05:30`;
   }
 
-  submitBtn.addEventListener('click', async () => {
+  submitBtn.form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
     const form = document.getElementById('bookForm');
-    if(!form.reportValidity()) return;
+    if(!form.reportValidity()) return; /* gate C14: reason/slots are in-form now */
     if(!selectedSlot){ ccToast('Choose a time slot first.'); return; }
     const btn = submitBtn;
     btn.disabled = true;
@@ -451,9 +467,17 @@ window.ccInitPatientBooking = function(user){
         const link = document.querySelector('.side-nav a[data-panel="appointments"]');
         if(link) link.click();
       });
-      form.reset();
-      renderSlots([]);
+      /* gate C14: clean, minimal reset — reason cleared, doctor meta hidden,
+         selection released; doctor/date stay so the patient can book again. */
+      document.getElementById('bookReason').value = '';
+      metaBox.style.display = 'none';
+      selectedSlot = null;
+      slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
       loadSlots();
+      if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
       if(window.ccLoadPatientDashboard) window.ccLoadPatientDashboard(user);
       if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
       if(window.ccMyAppointmentsLoad) ccMyAppointmentsLoad();
@@ -469,7 +493,9 @@ window.ccInitPatientBooking = function(user){
 
   function showSuggestions(message){
     if(!(doctorSel.value && dateInput.value)){ ccToast(message); return; }
-    ccApi(`/api/doctors/${doctorSel.value}/slots?date=${dateInput.value}`)
+    /* gate C1: refresh the grid FIRST (renderSlots hides a stale box), then
+       show the suggestions and wire each chip to its slot in #slotGrid. */
+    loadSlots().then(() => ccApi(`/api/doctors/${doctorSel.value}/slots?date=${dateInput.value}`))
       .then(slots => {
         const nearest = slots.slice(0, 5);
         if(!nearest.length){
@@ -483,10 +509,40 @@ window.ccInitPatientBooking = function(user){
             `<span class="cc-suggestion-hint">Times refresh automatically — first come, first served.</span></div>`;
         }
         suggestBox.style.display = '';
-        loadSlots();
+        bindSuggestionChips();
         suggestBox.scrollIntoView({ behavior:'smooth', block:'nearest' });
       })
       .catch(() => ccToast(message));
+  }
+
+  /* gate C1: clicking a suggestion selects the matching slot in #slotGrid
+     (matched by data-start), hides the box and sets selectedSlot — so the
+     booking button becomes usable without hunting for the time manually. */
+  function bindSuggestionChips(){
+    suggestBox.querySelectorAll('.cc-suggestion-btn').forEach(chip => {
+      if(chip.dataset.bound) return;
+      chip.dataset.bound = '1';
+      chip.addEventListener('click', () => {
+        const start = chip.dataset.start;
+        const target = Array.from(slotGrid.querySelectorAll('.slot-btn'))
+          .find(b => b.dataset.start === start);
+        if(!target){
+          ccToast('That time was just taken — here are the current free slots.');
+          loadSlots();
+          return;
+        }
+        slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
+          b.classList.remove('selected');
+          b.setAttribute('aria-pressed', 'false');
+        });
+        target.classList.add('selected');
+        target.setAttribute('aria-pressed', 'true');
+        selectedSlot = { start: target.dataset.start, label: target.dataset.label };
+        suggestBox.style.display = 'none';
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior:'smooth', block:'nearest' });
+      });
+    });
   }
 
   /* doctor or date changed -> refresh slots */
@@ -496,6 +552,35 @@ window.ccInitPatientBooking = function(user){
   dateInput.addEventListener('change', maybeLoad);
 };
 
+/* ============ gates C4 + S20: ONE appointments fetch, three consumers ============
+   The visit badge, the appointments table and the upcoming card share this
+   promise, so a dashboard load makes exactly one /api/appointments request.
+   Mutating actions call ccInvalidateAppointments() first. */
+let ccApptPromise = null;
+window.ccInvalidateAppointments = function(){ ccApptPromise = null; };
+window.ccPatientAppointments = function(){
+  if(!ccApptPromise){
+    ccApptPromise = ccApi('/api/appointments?page_size=100')
+      .catch(err => { ccApptPromise = null; throw err; });
+  }
+  return ccApptPromise;
+};
+/* gate C4: "upcoming" = earliest FUTURE Requested/Confirmed appointment.
+   Past and Cancelled/Declined rows can never win this filter. */
+window.ccPickUpcoming = function(appts){
+  const nowMs = Date.now();
+  return (appts || [])
+    .filter(a => a.status === 'Requested' || a.status === 'Confirmed')
+    .filter(a => new Date(a.scheduled_at).getTime() >= nowMs)
+    .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at))[0] || null;
+};
+window.ccCountUpcoming = function(appts){
+  const nowMs = Date.now();
+  return (appts || []).filter(a =>
+    (a.status === 'Requested' || a.status === 'Confirmed') &&
+    new Date(a.scheduled_at).getTime() >= nowMs).length;
+};
+
 /* Visit badge (gates 15–17): "Visit: Next 2 days" — an appointment starting
    within now..now+48h (Requested or Confirmed). Recomputed on load, after
    each booking/cancellation/reschedule, and on a 60s timer. */
@@ -503,7 +588,7 @@ window.ccRefreshVisitBadge = async function(){
   const badge = document.getElementById('visitBadge');
   if(!badge) return;
   try {
-    const appts = await ccApi('/api/appointments?page_size=100');
+    const appts = await window.ccPatientAppointments();
     const nowMs = Date.now();
     const next = appts
       .filter(a => (a.status === 'Requested' || a.status === 'Confirmed'))
@@ -520,7 +605,13 @@ window.ccRefreshVisitBadge = async function(){
       badge.hidden = true;
       badge.style.display = 'none';
     }
-  } catch(err){ badge.hidden = true; }
+  } catch(err){
+    /* gate C3: an API failure must leave NOTHING behind — clear the inline
+       display too, or the badge can reappear with its boot-time text. */
+    badge.hidden = true;
+    badge.style.display = 'none';
+    badge.textContent = '';
+  }
 };
 
 /* ================= My appointments panel (gates 8a/9) ================= */
@@ -529,7 +620,7 @@ window.ccMyAppointmentsLoad = async function(){
   if(!tbody) return;
   try {
     ccRenderState(tbody, 'loading', '', 6);
-    const appts = await ccApi('/api/appointments?page_size=100');
+    const appts = await window.ccPatientAppointments();
     if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments yet — request one from the Book Appointment panel.', 6); return; }
     tbody.innerHTML = appts.map(a => {
       const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
@@ -543,8 +634,10 @@ window.ccMyAppointmentsLoad = async function(){
       try {
         await ccApi(`/api/appointments/${btn.dataset.cancel}`, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
         ccToast('Appointment cancelled');
+        if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
         ccMyAppointmentsLoad();
         if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
+        if(window.ccLoadPatientDashboard) window.ccLoadPatientDashboard(JSON.parse(localStorage.getItem('cloudcare_session') || 'null'));
       } catch(err){ ccToast(err.message || 'Could not cancel.'); btn.disabled = false; }
     }));
   } catch(err){ ccRenderState(tbody, 'error', err.message, 6); }
@@ -570,7 +663,7 @@ window.ccLoadPatientDashboard = async function(user){
       ageRow.appendChild(ageInput);
       emailInput.parentElement.after(ageRow);
     }
-    const riskStat = document.querySelectorAll('#panel-overview .stat-card h3')[2];
+    const riskStat = document.getElementById('statRisk');
     if(riskStat && profile.risk_score !== null && profile.risk_score !== undefined){
       riskStat.textContent = profile.risk_score + '%';
     }
@@ -581,10 +674,13 @@ window.ccLoadPatientDashboard = async function(user){
     }
   } catch(err){ ccToast('Could not load your profile.'); }
 
-  /* upcoming appointment card */
+  /* upcoming appointment card — gates C4 + S20: shared fetch, and only a
+     FUTURE Requested/Confirmed appointment is ever shown as "upcoming". */
   try {
-    const appts = await ccApi('/api/appointments?page=1&page_size=1');
-    const upcoming = appts[0];
+    const appts = await window.ccPatientAppointments();
+    const upcoming = window.ccPickUpcoming(appts);
+    const upcomingStat = document.getElementById('statUpcoming');
+    if(upcomingStat) upcomingStat.textContent = String(window.ccCountUpcoming(appts));
     const card = document.getElementById('upcomingApptCard');
     if(upcoming && card){
       const when = new Date(upcoming.scheduled_at).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
@@ -607,7 +703,7 @@ window.ccLoadPatientDashboard = async function(user){
       window.ccCurrentApptId = upcoming.id;
     } else if(card){
       card.removeAttribute('style');
-      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming appointments</strong><span style="font-size:.82rem;color:var(--slate-400);">Request one from the Appointments panel.</span></div>';
+      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming appointments</strong><span style="font-size:.82rem;color:var(--slate-400);">Nothing booked in the future — request one from the Book Appointment panel.</span></div>';
     }
   } catch(err){ ccToast('Could not load your next appointment.'); }
 
@@ -617,6 +713,14 @@ window.ccLoadPatientDashboard = async function(user){
     ccRenderState(tbody, 'loading', '', 5);
     const bills = await ccApi('/api/bills');
     window.ccBills = bills; // kept for the payment modal
+    /* gate C5: outstanding balance is the real sum of unpaid invoices. */
+    const balanceStat = document.getElementById('statBalance');
+    if(balanceStat){
+      const outstanding = bills
+        .filter(b => b.status !== 'Paid')
+        .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+      balanceStat.textContent = '₹' + outstanding.toLocaleString('en-IN');
+    }
     if(!bills.length){ ccRenderState(tbody, 'empty', 'No invoices yet.', 5); }
     else {
       tbody.innerHTML = bills.map((b, i) => {

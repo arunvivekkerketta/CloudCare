@@ -219,12 +219,18 @@
   }
 
   function onDeleteSpecialty(id, name) {
+    /* gate C9: shared .cc-modal-head / -body / -foot structure + red btn-danger */
     ccModalOpen(`
-      <h3 style="margin-bottom:10px;">Delete specialty?</h3>
-      <p style="font-size:.9rem;">“${ccEscape(name)}” will be removed permanently. Doctors keep their records; this only removes it from the booking dropdown.</p>
-      <div class="flex gap-12 mt-24">
-        <button type="button" class="btn btn-primary" id="opsSpecYes">Delete</button>
+      <div class="cc-modal-head">
+        <div><h3>Delete specialty?</h3><p>This cannot be undone.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary"><strong>${ccEscape(name)}</strong> will be removed permanently. Doctors keep their records; this only removes it from the booking dropdown.</div>
+      </div>
+      <div class="cc-modal-foot">
         <button type="button" class="btn btn-ghost" id="opsSpecNo">Cancel</button>
+        <button type="button" class="btn btn-danger" id="opsSpecYes">Delete specialty</button>
       </div>`);
     document.getElementById('opsSpecYes').addEventListener('click', async () => {
       try {
@@ -273,11 +279,16 @@
 
   function onDeleteReview(reviewId) {
     ccModalOpen(`
-      <h3 style="margin-bottom:10px;">Delete this review?</h3>
-      <p style="font-size:.9rem;">Removal is permanent — the patient would have to write it again.</p>
-      <div class="flex gap-12 mt-24">
-        <button type="button" class="btn btn-primary" id="opsRevYes">Delete review</button>
+      <div class="cc-modal-head">
+        <div><h3>Delete this review?</h3><p>Removal is permanent.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary">The patient would have to write it again — there is no undo and no notification.</div>
+      </div>
+      <div class="cc-modal-foot">
         <button type="button" class="btn btn-ghost" id="opsRevNo">Cancel</button>
+        <button type="button" class="btn btn-danger" id="opsRevYes">Delete review</button>
       </div>`);
     document.getElementById('opsRevYes').addEventListener('click', async () => {
       try {
@@ -357,11 +368,16 @@
 
   function onDeleteDoctor(doctorId, name) {
     ccModalOpen(`
-      <h3 style="margin-bottom:10px;">Delete ${ccEscape(name)}?</h3>
-      <p style="font-size:.9rem;">Removes the account, their shifts, leaves and reviews. Their appointment records are removed with the account; assigned patients keep their records (unassigned).</p>
-      <div class="flex gap-12 mt-24">
-        <button type="button" class="btn btn-primary" id="opsDocYes">Delete doctor</button>
+      <div class="cc-modal-head">
+        <div><h3>Delete ${ccEscape(name)}?</h3><p>Their shifts, leaves and reviews go with the account.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary">Removes the account, their shifts, leaves and reviews. Their appointment records are removed with the account; assigned patients keep their records (unassigned).</div>
+      </div>
+      <div class="cc-modal-foot">
         <button type="button" class="btn btn-ghost" id="opsDocNo">Cancel</button>
+        <button type="button" class="btn btn-danger" id="opsDocYes">Delete doctor</button>
       </div>`);
     document.getElementById('opsDocYes').addEventListener('click', async () => {
       try {
@@ -374,11 +390,16 @@
            carries the counts; offer the explicit cancel=true escalation. */
         ccModalClose();
         ccModalOpen(`
-          <h3 style="margin-bottom:10px;">Active appointments</h3>
-          <p style="font-size:.9rem;">${ccEscape(err.message)}</p>
-          <div class="flex gap-12 mt-24">
-            <button type="button" class="btn btn-primary" id="opsDocForce">Cancel their appointments &amp; delete</button>
+          <div class="cc-modal-head">
+            <div><h3>Active appointments</h3><p>The doctor cannot be deleted while visits are scheduled.</p></div>
+            <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+          </div>
+          <div class="cc-modal-body">
+            <div class="cc-modal-summary">${ccEscape(err.message)}</div>
+          </div>
+          <div class="cc-modal-foot">
             <button type="button" class="btn btn-ghost" id="opsDocKeep">Keep doctor</button>
+            <button type="button" class="btn btn-danger" id="opsDocForce">Cancel their appointments &amp; delete</button>
           </div>`);
         document.getElementById('opsDocForce').addEventListener('click', async () => {
           try {
@@ -410,6 +431,48 @@
   const CC_ROLES = ['patient', 'doctor', 'nurse', 'pharmacist', 'lab', 'admin'];
   const CC_ROLE_LABEL = { patient: 'Patient', doctor: 'Doctor', nurse: 'Nurse', pharmacist: 'Pharmacist', lab: 'Lab', admin: 'Admin' };
 
+  /* gate S3: a role change is confirmed before it hits the API; cancelling
+     reverts the select to the value it had before the modal opened. */
+  function confirmRoleChange(sel, userId, name, role) {
+    const previous = sel.dataset.previous || sel.value;
+    /* Revert the <select> immediately: the UI only shows the new role after
+       the admin confirms — cancel (or ✕ / Escape / overlay click) therefore
+       needs no cleanup, the old role is already displayed. */
+    sel.value = previous;
+    ccModalOpen(`
+      <div class="cc-modal-head">
+        <div><h3>Change role?</h3><p>Permissions update immediately.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary"><strong>${ccEscape(name)}</strong> will become <strong>${ccEscape(CC_ROLE_LABEL[role] || role)}</strong>.</div>
+      </div>
+      <div class="cc-modal-foot">
+        <button type="button" class="btn btn-ghost" id="roleNo">Cancel</button>
+        <button type="button" class="btn btn-primary" id="roleYes">Change role</button>
+      </div>`);
+    document.getElementById('roleNo').addEventListener('click', () => {
+      ccModalClose(); // select already shows `previous` — nothing was sent
+    });
+    document.getElementById('roleYes').addEventListener('click', async function(){
+      this.disabled = true;
+      try {
+        await ccApi(`/api/admin/users/${userId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ role }),
+        });
+        ccModalClose();
+        ccToast(`${name} is now ${CC_ROLE_LABEL[role] || role}.`);
+        sel.dataset.previous = role;
+      } catch (err) {
+        ccModalClose();
+        ccToast(err.message); // e.g. "You cannot change your own role."
+        sel.value = previous;
+      }
+      ccOpsLoadAccounts();
+    });
+  }
+
   async function ccOpsLoadAccounts() {
     const tbody = document.getElementById('accountTable');
     try {
@@ -424,7 +487,7 @@
       tbody.innerHTML = users.map((u) => {
         const opts = CC_ROLES.map((r) =>
           `<option value="${r}"${r === u.role ? ' selected' : ''}>${CC_ROLE_LABEL[r]}</option>`).join('');
-        const roleSel = `<select data-role-for="${ccEscape(u.id)}" data-name="${ccEscape(u.name)}" style="padding:6px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:.8rem;">${opts}</select>`;
+        const roleSel = `<select data-role-for="${ccEscape(u.id)}" data-name="${ccEscape(u.name)}" data-previous="${ccEscape(u.role)}" style="padding:6px 10px;border-radius:8px;border:1.5px solid var(--line);font-size:.8rem;">${opts}</select>`;
         return `<tr>
           <td><strong>${ccEscape(u.name)}</strong></td>
           <td style="font-size:.82rem;color:var(--slate-500);">${ccEscape(u.email)}</td>
@@ -434,7 +497,7 @@
         </tr>`;
       }).join('');
       tbody.querySelectorAll('select[data-role-for]').forEach((sel) => {
-        sel.addEventListener('change', () => onChangeRole(sel.dataset.roleFor, sel.dataset.name, sel.value));
+        sel.addEventListener('change', () => confirmRoleChange(sel, sel.dataset.roleFor, sel.dataset.name, sel.value));
       });
       tbody.querySelectorAll('[data-del-user]').forEach((btn) => {
         btn.addEventListener('click', () => onDeleteUser(btn.dataset.delUser, btn.dataset.name));
@@ -444,26 +507,18 @@
     }
   }
 
-  async function onChangeRole(userId, name, role) {
-    try {
-      await ccApi(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role }),
-      });
-      ccToast(`${name} is now ${CC_ROLE_LABEL[role] || role}.`);
-    } catch (err) {
-      ccToast(err.message); // e.g. "You cannot change your own role."
-    }
-    ccOpsLoadAccounts(); // re-render reverts the select on failure, refreshes on success
-  }
-
   function onDeleteUser(userId, name) {
     ccModalOpen(`
-      <h3 style="margin-bottom:10px;">Delete account?</h3>
-      <p style="font-size:.9rem;">${ccEscape(name)}'s account and their patient/clinical records will be removed. This cannot be undone.</p>
-      <div class="flex gap-12 mt-24">
-        <button type="button" class="btn btn-primary" id="opsUserYes">Delete account</button>
+      <div class="cc-modal-head">
+        <div><h3>Delete account?</h3><p>This cannot be undone.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary"><strong>${ccEscape(name)}</strong>'s account and their patient/clinical records will be removed.</div>
+      </div>
+      <div class="cc-modal-foot">
         <button type="button" class="btn btn-ghost" id="opsUserNo">Cancel</button>
+        <button type="button" class="btn btn-danger" id="opsUserYes">Delete account</button>
       </div>`);
     document.getElementById('opsUserYes').addEventListener('click', async () => {
       try {
@@ -510,6 +565,7 @@
   /* Consolidated dashboard loader — replaces the one from dashboard-admin.js
      (this file loads after it, and the guard's async call resolves later). */
   window.ccLoadAdminDashboard = function () {
+    if (window.ccLoadAdminKpis) window.ccLoadAdminKpis(); /* gate C5 */
     if (window.ccLoadAdminPatients) window.ccLoadAdminPatients();
     if (window.ccLoadAdminAppointments) window.ccLoadAdminAppointments();
     if (window.ccLoadAdminBills) window.ccLoadAdminBills();

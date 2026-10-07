@@ -193,34 +193,77 @@ function ccRefreshUserIdentity(user){
   });
 }
 
-/* ---------- marketing-nav account menu (gate 12b) ----------
+/* ---------- marketing-nav account menu (gates 12b, 1b, 12) ----------
    On public pages, replaces "Sign in / Get started" with the user's name +
-   account menu (My dashboard · Appointments · Book appointment · Sign out)
-   when a valid session exists; keeps the default CTA otherwise. */
-async function ccInitPublicNav(){
+   account menu. gate S1: the menu is painted INSTANTLY from ccGetSession(),
+   then verified against /api/auth/me in the background. gate C16: that check
+   runs with {noRedirect:true} — a revoked token clears the session and keeps
+   the signed-out nav instead of bouncing the visitor to login.html. */
+function ccInitPublicNav(){
   const navCta = document.querySelector('.nav-cta');
   if(!navCta) return;
 
+  /* remember the page's own signed-out CTA so we can always put it back */
+  if(!navCta.dataset.ctaOriginal) navCta.dataset.ctaOriginal = navCta.innerHTML;
+
+  const restoreSignedOutCta = () => {
+    navCta.innerHTML = navCta.dataset.ctaOriginal;
+    if(window.__ccThemeToggle) navCta.prepend(window.__ccThemeToggle);
+    ccPaintHeroCtas(null);
+  };
+
   const token = localStorage.getItem('cloudcare_token');
   const session = ccGetSession();
-  if(!token || !session) return; // signed out: leave "Sign in / Get started"
+  if(!token || !session){
+    restoreSignedOutCta();
+    return;
+  }
   if(ccSessionExpired()){
     ccClearSession();
-    return; // stale: show the signed-out CTA, no dead menu
+    restoreSignedOutCta(); // stale: signed-out CTA, no dead menu
+    return;
   }
 
-  let user = null;
-  try {
-    user = await ccApi('/api/auth/me');
-  } catch(err){
-    return; // 401 already redirected to login; network errors keep the CTA
-  }
+  /* 1) paint immediately from the cached session (no await, no flash) */
+  ccPaintAccountMenu(session);
+  ccPaintHeroCtas(session.role);
+
+  /* 2) verify in the background — no redirect on 401 */
+  ccApi('/api/auth/me', { noRedirect: true }).then(user => {
+    ccSetSession(user);
+    ccPaintAccountMenu(user);
+    ccPaintHeroCtas(user.role);
+  }).catch(err => {
+    /* 401: session already cleared by ccApi -> fall back to signed-out nav.
+       Network errors: keep the menu painted from the cached session. */
+    if(!localStorage.getItem('cloudcare_token')) restoreSignedOutCta();
+  });
+}
+
+/* gate S1: index.html hero CTAs swap to dashboard actions when signed in. */
+let ccHeroCtaOriginal = null;
+function ccPaintHeroCtas(role){
+  const hero = document.getElementById('heroCtas');
+  if(!hero) return;
+  if(ccHeroCtaOriginal === null) ccHeroCtaOriginal = hero.innerHTML;
+  if(!role){ hero.innerHTML = ccHeroCtaOriginal; return; }
+  const dash = `dashboard-${role}.html`;
+  /* patients book from their own panel; other roles land on their dashboard */
+  const bookHref = role === 'patient' ? `${dash}#panel-book` : dash;
+  hero.innerHTML = `
+    <a href="${dash}" class="btn btn-accent">Go to dashboard</a>
+    <a href="${bookHref}" class="btn btn-ghost">Book an appointment</a>`;
+}
+
+function ccPaintAccountMenu(user){
+  const navCta = document.querySelector('.nav-cta');
+  if(!navCta) return;
 
   const dash = `dashboard-${user.role}.html`;
   const initials = user.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
   navCta.innerHTML = `
     <div class="cc-account-menu">
-      <button class="btn btn-ghost btn-sm cc-account-trigger" type="button" aria-haspopup="true">
+      <button class="btn btn-ghost btn-sm cc-account-trigger" type="button" aria-haspopup="true" aria-expanded="false">
         <span class="avatar-sm">${ccEscape(initials)}</span>
         <span class="cc-account-name">${ccEscape(user.name)}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -240,8 +283,11 @@ async function ccInitPublicNav(){
   const menu = navCta.querySelector('.cc-account-menu');
   /* Re-attach the theme toggle that innerHTML replacement removed. */
   if(window.__ccThemeToggle) navCta.prepend(window.__ccThemeToggle);
-  navCta.querySelector('.cc-account-trigger').addEventListener('click', () => {
-    menu.classList.toggle('open');
+
+  const trigger = navCta.querySelector('.cc-account-trigger');
+  trigger.addEventListener('click', () => {
+    const open = menu.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', String(open));
   });
 
   /* "Book appointment": patients jump to their booking panel; other roles
@@ -249,6 +295,7 @@ async function ccInitPublicNav(){
   navCta.querySelector('[data-menu-book]').addEventListener('click', (e) => {
     e.preventDefault();
     menu.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
     if(user.role === 'patient'){
       window.location.href = 'dashboard-patient.html#panel-book';
     } else {
@@ -264,12 +311,24 @@ async function ccInitPublicNav(){
     window.location.href = 'login.html';
   });
 
-  /* Close the menu on any outside click / Escape. */
+  /* Close the menu on any outside click / Escape. Bound once per page, but
+     always resolved against the CURRENT menu node (the /me repaint swaps it). */
+  if(navCta.dataset.menuBound) return;
+  navCta.dataset.menuBound = '1';
+  const currentMenu = () => navCta.querySelector('.cc-account-menu');
+  const closeMenu = () => {
+    const m = currentMenu();
+    if(!m) return;
+    m.classList.remove('open');
+    const t = navCta.querySelector('.cc-account-trigger');
+    if(t) t.setAttribute('aria-expanded', 'false');
+  };
   document.addEventListener('click', (e) => {
-    if(!menu.contains(e.target)) menu.classList.remove('open');
+    const m = currentMenu();
+    if(m && !m.contains(e.target)) closeMenu();
   });
   document.addEventListener('keydown', (e) => {
-    if(e.key === 'Escape') menu.classList.remove('open');
+    if(e.key === 'Escape') closeMenu();
   });
 }
 

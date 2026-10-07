@@ -22,11 +22,11 @@
       <div><strong data-user-name></strong><span data-user-role>Lab Technician</span></div>
     </div>
     <nav class="side-nav">
-      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
-      <a data-panel="requests"><span class="ic">🧪</span>Test Requests</a>
-      <a data-panel="samples"><span class="ic">🧬</span>Sample Tracking</a>
-      <a data-panel="upload"><span class="ic">📤</span>Upload Results</a>
-      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+      <a data-panel="overview" class="active" href="#panel-overview"><span class="ic">🏠</span><span class="lbl">Overview</span></a>
+      <a data-panel="requests" href="#panel-requests"><span class="ic">🧪</span><span class="lbl">Test Requests</span></a>
+      <a data-panel="samples" href="#panel-samples"><span class="ic">🧬</span><span class="lbl">Sample Tracking</span></a>
+      <a data-panel="upload" href="#panel-upload"><span class="ic">📤</span><span class="lbl">Upload Results</span></a>
+      <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
     <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
   </aside>
@@ -35,7 +35,7 @@
     <div class="dash-topbar">
       <div><h1 id="topbarTitle">Overview</h1><p class="sub">Central Laboratory · Shift: 7 AM – 3 PM</p></div>
       <div class="flex items-center gap-12">
-        <span class="badge badge-mint">● Lab open</span>
+        <span class="badge badge-mint" id="labBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>LT</div>
       </div>
     </div>
@@ -44,10 +44,11 @@
 
       <section class="panel-view active" id="panel-overview">
         <div class="grid grid-4 mb-0">
-          <div class="stat-card"><h3>9</h3><span class="stat-label">Pending test requests</span></div>
-          <div class="stat-card"><h3>5</h3><span class="stat-label">Samples in processing</span></div>
-          <div class="stat-card"><h3>21</h3><span class="stat-label">Results uploaded today</span></div>
-          <div class="stat-card"><h3>2</h3><span class="stat-label">Priority (STAT) requests</span></div>
+          <!-- gate C5: only the open-request count has an endpoint. -->
+          <div class="stat-card"><h3 id="labStatRequests">—</h3><span class="stat-label">Open requests</span></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Samples in processing</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Results uploaded today</span><div><span class="badge badge-slate">Coming soon</span></div></div>
+          <div class="stat-card"><h3>—</h3><span class="stat-label">Priority (STAT) requests</span><div><span class="badge badge-slate">Coming soon</span></div></div>
         </div>
         <div class="panel mt-24">
           <div class="panel-head"><h3>Priority queue</h3></div>
@@ -59,8 +60,10 @@
         <div class="panel">
           <div class="panel-head"><h3>Incoming test requests</h3><span class="badge badge-slate" id="reqBadge">0 pending</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table><thead><tr><th>Patient</th><th>Test</th><th>Ordered by</th><th>Priority</th><th>Status</th></tr></thead>
             <tbody id="reqTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -69,8 +72,10 @@
         <div class="panel">
           <div class="panel-head"><h3>Sample tracking</h3></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
             <table><thead><tr><th>Sample ID</th><th>Patient</th><th>Type</th><th>Stage</th></tr></thead>
             <tbody id="sampleTable"></tbody></table>
+            </div>
           </div>
         </div>
       </section>
@@ -129,21 +134,25 @@
 <script>ccGuardDashboard('lab').then(user => { if(user) window.ccLoadLabDashboard(user); });</script>
 <script>
 window.ccLoadLabDashboard = async function(user){
-  /* priority queue — appointments waiting or checked in are treated as STAT */
+  /* priority queue — gate C5: there is no lab-orders module and no "STAT"
+     flag exists in the API, so the queue honestly says so instead of
+     inventing STAT requests out of unrelated appointment statuses. */
   try {
     const appts = await ccApi('/api/appointments?page_size=100');
-    const stat = appts.filter(a => a.status === 'Waiting' || a.status === 'Checked in');
     const priorityList = document.getElementById('priorityList');
-    if(!stat.length){
-      priorityList.innerHTML = '<div class="risk-row" style="padding:14px 0;"><span style="color:var(--slate-400);font-size:.85rem;">No priority (STAT) requests.</span></div>';
-    } else {
-      priorityList.innerHTML = stat.map(a => `
-        <div class="risk-row" style="padding:14px 0;border-bottom:1px solid var(--cloud-100);">
-          <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)} — ${ccEscape(a.department)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Sample collection pending')} · ${ccEscape(a.status)}</span></div>
-          <button class="btn btn-sm btn-accent" onclick="ccToast('Lab orders module coming soon')">Start processing</button></div>`).join('');
+    priorityList.innerHTML = '<div class="risk-row" style="padding:14px 0;"><div><strong style="font-size:.9rem;">Lab orders module coming soon</strong><span style="display:block;font-size:.78rem;color:var(--slate-400);">The STAT priority queue appears here once lab orders exist — nothing is guessed from appointment statuses.</span></div></div>';
+
+    const stat = document.getElementById('labStatRequests');
+    if(stat) stat.textContent = String(appts.length);
+    const labBadge = document.getElementById('labBadge');
+    if(labBadge){
+      labBadge.textContent = `● ${appts.length} open request${appts.length === 1 ? '' : 's'}`;
+      labBadge.hidden = false;
+      labBadge.style.display = '';
     }
 
-    /* test requests table */
+    /* test requests table — real statuses only. gate C5: the fabricated
+       "STAT / Routine" labels are removed (there is no priority field). */
     const tbody = document.getElementById('reqTable');
     const badge = document.getElementById('reqBadge');
     if(badge) badge.textContent = `${appts.length} pending`;
@@ -151,10 +160,10 @@ window.ccLoadLabDashboard = async function(user){
       ccRenderState(tbody, 'empty', 'No test requests.', 5);
     } else {
       tbody.innerHTML = appts.map(a => {
-        const statFlag = a.status === 'Waiting' || a.status === 'Checked in';
+        const statusClass = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : 'badge-slate';
         return `<tr><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || a.department)}</td><td>${ccEscape(a.doctor_name)}</td>
-          <td><span class="badge ${statFlag?'badge-coral':'badge-slate'}">${statFlag?'STAT':'Routine'}</span></td>
-          <td><span class="badge ${a.status==='Checked in'?'badge-gold':'badge-slate'}">${ccEscape(a.status)}</span></td></tr>`;
+          <td>—</td>
+          <td><span class="badge ${statusClass}">${ccEscape(a.status)}</span></td></tr>`;
       }).join('');
     }
 

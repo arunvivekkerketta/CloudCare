@@ -267,19 +267,38 @@ function ccAttachPasswordToggle(input){
   items.forEach(el => io.observe(el));
 })();
 
-/* ---------- marketing nav (mobile) ---------- */
+/* ---------- marketing nav (mobile) — gate C13 ----------
+   Class-driven (.nav-open on .site-nav): no inline style is ever written,
+   so resizing back to desktop restores the normal nav untouched. */
 (function initNavToggle(){
   const toggle = document.querySelector('.nav-toggle');
-  const links = document.querySelector('.nav-links');
-  const cta = document.querySelector('.nav-cta');
-  if(!toggle) return;
-  toggle.addEventListener('click', () => {
-    const open = links.style.display === 'flex';
-    links.style.display = open ? '' : 'flex';
-    links.style.flexDirection = 'column';
-    if(cta){ cta.style.display = open ? '' : 'flex'; cta.style.flexDirection = 'column'; }
+  const nav = document.querySelector('.site-nav');
+  if(!toggle || !nav) return;
+
+  const setOpen = (open) => {
+    nav.classList.toggle('nav-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  setOpen(false);
+
+  toggle.addEventListener('click', () => setOpen(!nav.classList.contains('nav-open')));
+  /* close when a link is chosen or Escape is pressed */
+  nav.querySelectorAll('.nav-links a, .nav-cta a').forEach(a => {
+    a.addEventListener('click', () => setOpen(false));
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && nav.classList.contains('nav-open')){
+      setOpen(false);
+      toggle.focus();
+    }
   });
 })();
+
+/* gate S19: scroll helper that honours prefers-reduced-motion. */
+function ccScrollBehavior(){
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+window.ccScrollBehavior = ccScrollBehavior;
 
 /* ---------- dashboard: sidebar panel switching ---------- */
 (function initDashboardNav(){
@@ -291,20 +310,35 @@ function ccAttachPasswordToggle(input){
   const title = document.getElementById('topbarTitle');
 
   function activate(name){
-    links.forEach(l => l.classList.toggle('active', l.dataset.panel === name));
+    links.forEach(l => {
+      const isActive = l.dataset.panel === name;
+      l.classList.toggle('active', isActive);
+      /* gate C11: real links + aria-current for assistive tech */
+      if(isActive) l.setAttribute('aria-current', 'page');
+      else l.removeAttribute('aria-current');
+    });
     panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
     if(title){
       const active = [...links].find(l => l.dataset.panel === name);
-      if(active) title.textContent = active.textContent.trim();
+      /* gate S2: the label lives in <span class="lbl"> — never the emoji icon */
+      const label = active && (active.querySelector('.lbl') || active);
+      if(label) title.textContent = label.textContent.trim();
     }
     document.querySelector('.dash-sidebar')?.classList.remove('open');
-    window.scrollTo({ top:0, behavior:'smooth' });
+    window.scrollTo({ top:0, behavior: ccScrollBehavior() });
   }
 
+  /* links carry href="#panel-…" now — JS still owns the switch */
   links.forEach(l => l.addEventListener('click', (e) => {
     e.preventDefault();
     activate(l.dataset.panel);
   }));
+
+  /* honour the initial hash (and mark the starting link) */
+  const initial = [...links].find(l => l.classList.contains('active'));
+  if(initial) initial.setAttribute('aria-current', 'page');
+  const hashPanel = (window.location.hash || '').replace('#panel-', '');
+  if(hashPanel && [...links].some(l => l.dataset.panel === hashPanel)) activate(hashPanel);
 
   document.querySelectorAll('[data-panel-link]').forEach(l => {
     l.addEventListener('click', (e) => {
