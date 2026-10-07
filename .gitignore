@@ -1,0 +1,28 @@
+# ---- environment / secrets ----
+.env
+*.env
+!.env.example
+
+# ---- python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ---- databases ----
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- build artifacts ----
+dist/
+node_modules/

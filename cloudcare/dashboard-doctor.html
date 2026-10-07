@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Dashboard — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
+</head>
+<body>
+
+<div class="dash-shell">
+  <aside class="dash-sidebar">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none"><path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.4"/><path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      CloudCare
+    </a>
+    <div class="side-role">
+      <div class="avatar" data-user-avatar>DR</div>
+      <div><strong data-user-name></strong><span data-user-role>Doctor</span></div>
+    </div>
+    <nav class="side-nav">
+      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
+      <a data-panel="patients"><span class="ic">🧑‍⚕️</span>My Patients</a>
+      <a data-panel="appointments"><span class="ic">📅</span>Appointments</a>
+      <a data-panel="emr"><span class="ic">📋</span>Electronic Records</a>
+      <a data-panel="prescriptions"><span class="ic">💊</span>Prescriptions</a>
+      <a data-panel="telemedicine"><span class="ic">🎥</span>Telemedicine</a>
+      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+    </nav>
+    <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
+  </aside>
+
+  <main class="dash-main">
+    <div class="dash-topbar">
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Cardiology · Today, 8 patients scheduled</p></div>
+      <div class="flex items-center gap-12">
+        <span class="badge badge-mint">● On duty</span>
+        <div class="avatar-sm" data-user-avatar>DR</div>
+      </div>
+    </div>
+
+    <div class="dash-body">
+
+      <section class="panel-view active" id="panel-overview">
+        <div class="grid grid-4 mb-0">
+          <div class="stat-card"><h3>8</h3><span class="stat-label">Patients today</span></div>
+          <div class="stat-card"><h3>214</h3><span class="stat-label">Total under care</span></div>
+          <div class="stat-card"><h3>3</h3><span class="stat-label">Pending prescriptions</span></div>
+          <div class="stat-card"><h3>4.8★</h3><span class="stat-label">Patient rating</span></div>
+        </div>
+        <div class="grid grid-2 mt-24">
+          <div class="panel">
+            <div class="panel-head"><h3>Next up</h3></div>
+            <div class="panel-body" id="nextUpList"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Consultations — this week</h3></div>
+            <div class="panel-body"><canvas id="consultChart" height="200"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-patients">
+        <div class="panel">
+          <div class="panel-head"><h3>My patients</h3><input type="search" placeholder="Search…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>Patient</th><th>Condition</th><th>Last visit</th><th>Risk score</th><th></th></tr></thead>
+            <tbody id="myPatientTable"></tbody></table>
+          </div>
+        </div>
+      </section>      <section class="panel-view" id="panel-appointments">
+        <div class="panel">
+          <div class="panel-head"><h3>Appointments</h3>
+            <span class="badge badge-slate">Confirm or Decline requested visits</span>
+            <button class="btn btn-ghost btn-sm" id="docApptRefresh">↻ Refresh</button>
+          </div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>When</th><th>Patient</th><th>Reason</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+              <tbody id="doctorApptTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-emr">
+        <div class="panel">
+          <div class="panel-head"><h3>Electronic Medical Record — Simran Kaur</h3><span class="badge badge-coral">High risk</span></div>
+          <div class="panel-body grid grid-2">
+            <div>
+              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">DIAGNOSIS HISTORY</p>
+              <p>Type 2 Diabetes (2021), Mild hypertension (2023). HbA1c trending upward over last 3 visits.</p>
+              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">ALLERGIES</p>
+              <p>Penicillin</p>
+            </div>
+            <div>
+              <p style="font-size:.82rem;font-weight:700;color:var(--teal-900);margin-bottom:6px;">VITALS — LAST VISIT</p>
+              <div class="grid grid-2">
+                <div class="card" style="padding:16px;"><span class="stat-label">BP</span><h3 style="font-size:1.4rem;">138/88</h3></div>
+                <div class="card" style="padding:16px;"><span class="stat-label">HbA1c</span><h3 style="font-size:1.4rem;">7.8%</h3></div>
+              </div>
+              <button class="btn btn-primary btn-sm mt-16" onclick="ccToast('Note added to record (demo)')">Add clinical note</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-prescriptions">
+        <div class="panel">
+          <div class="panel-head"><h3>Write a prescription</h3></div>
+          <div class="panel-body">
+            <form onsubmit="event.preventDefault(); ccToast('Prescription sent to pharmacy (demo)'); this.reset();">
+              <div class="grid grid-2">
+                <div class="field"><label>Patient</label><select><option>Simran Kaur</option><option>Rohan Das</option><option>Vikram Rao</option></select></div>
+                <div class="field"><label>Medicine</label><input type="text" placeholder="e.g. Metformin 500mg" required></div>
+                <div class="field"><label>Dosage</label><input type="text" placeholder="e.g. 1 tablet twice daily"></div>
+                <div class="field"><label>Duration</label><input type="text" placeholder="e.g. 30 days"></div>
+              </div>
+              <div class="field"><label>Notes for pharmacist</label><textarea placeholder="Optional instructions…"></textarea></div>
+              <button type="submit" class="btn btn-accent">Send to pharmacy</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-telemedicine">
+        <div class="panel">
+          <div class="panel-head"><h3>Telemedicine queue</h3><span class="badge badge-mint" id="teleBadge">● 0 waiting</span></div>
+          <div class="panel-body" id="teleList"></div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-profile">
+        <div class="panel settings-panel">
+          <div class="settings-head">
+            <div class="settings-avatar" data-user-avatar>DR</div>
+            <h3 data-profile-name></h3>
+            <p data-profile-role>Doctor</p>
+          </div>
+          <div class="panel-body">
+            <div class="field"><label>Display name</label><input type="text" data-profile-name-input></div>
+            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
+            <div class="field"><label>Department</label><input type="text" placeholder="e.g. Cardiology"></div>
+            <div class="field"><label>Consultation hours</label><input type="text" placeholder="e.g. 9:00 AM – 4:00 PM"></div>
+            <div class="flex gap-12 mt-8">
+              <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
+              <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
+            </div>
+            <div class="risk-row mt-24" style="border-top:1px solid var(--line);padding-top:18px;">
+              <div><strong style="display:block;font-size:.9rem;">Password</strong><span style="font-size:.78rem;color:var(--slate-400);">Keep your account secure with a strong password.</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="ccOpenChangePassword()">Change password</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>ccGuardDashboard('doctor').then(user => {
+  if(!user) return;
+  window.ccLoadDoctorDashboard(user);
+  window.ccStartDoctorPolling();
+});</script>
+<script>
+Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
+
+new Chart(document.getElementById('consultChart'), {
+  type:'bar',
+  data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat'], datasets:[{ label:'Consultations', data:[7,9,6,8,8,4], backgroundColor:'#2fb8a4', borderRadius:6 }]},
+  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+});
+
+window.ccLoadDoctorDashboard = async function(user){
+  /* my patients table */
+  try {
+    const tbody = document.querySelector('#myPatientTable');
+    ccRenderState(tbody, 'loading', '', 5);
+    const patients = await ccApi('/api/patients');
+    if(!patients.length){ ccRenderState(tbody, 'empty', 'No patients assigned yet.', 5); }
+    else {
+      tbody.innerHTML = patients.map(p => {
+        const risk = p.risk_score === null || p.risk_score === undefined ? 0 : p.risk_score;
+        return `<tr><td><span class="avatar-sm">${ccEscape(p.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</span>${ccEscape(p.name)}</td>
+        <td>${ccEscape(p.condition || '—')}</td><td>—</td>
+        <td><div class="flex items-center gap-12" style="width:120px;"><div class="progress-track w-full"><div class="progress-fill" style="width:${risk}%;background:${risk>70?'#ff6f59':risk>40?'#e0a53c':'#2fb8a4'};"></div></div><span class="mono" style="font-size:.75rem;">${risk}%</span></div></td>
+        <td><button class="btn btn-sm btn-ghost" onclick="ccToast('Opening EMR (demo)')">View EMR</button></td></tr>`;
+      }).join('');
+    }
+  } catch(err){ ccRenderState(document.querySelector('#myPatientTable'), 'error', err.message, 5); }
+
+  /* appointments (status flowing through Requested -> Confirmed/Declined) */
+  try {
+    const tbody = document.querySelector('#doctorApptTable');
+    ccRenderState(tbody, 'loading', '', 6);
+    const appts = await ccApi('/api/appointments?page_size=100');
+    const teleBadge = document.getElementById('teleBadge');
+    if(teleBadge) teleBadge.textContent = `● ${appts.filter(a => a.mode === 'Telemedicine' && a.status !== 'Declined' && a.status !== 'Cancelled').length} waiting`;
+    if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments scheduled.', 6); }
+    else {
+      tbody.innerHTML = appts.map(a => {
+        const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+        const badge = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : a.status === 'Cancelled' ? 'badge-slate' : 'badge-coral';
+        let actions = '';
+        if(a.status === 'Requested'){
+          actions = `<button class="btn btn-sm btn-primary" data-confirm="${a.id}">Confirm</button>
+                     <button class="btn btn-sm btn-ghost" data-decline="${a.id}">Decline</button>`;
+        }
+        return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || '—')}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td class="doc-appt-actions">${actions}</td></tr>`;
+      }).join('');
+      tbody.querySelectorAll('button[data-confirm]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Confirmed')));
+      tbody.querySelectorAll('button[data-decline]').forEach(btn => btn.addEventListener('click', () => settle(btn, 'Declined')));
+    }
+    /* next-up list: first three upcoming */
+    const nextUp = document.getElementById('nextUpList');
+    if(nextUp){
+      const upcoming = appts.filter(a => a.status === 'Confirmed' || a.status === 'Requested');
+      if(!upcoming.length){
+        nextUp.innerHTML = '<div class="risk-row" style="padding:12px 0;"><span style="color:var(--slate-400);font-size:.85rem;">Nothing scheduled.</span></div>';
+      } else {
+        nextUp.innerHTML = upcoming.slice(0, 3).map(a => {
+          const time = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
+          return `<div class="risk-row" style="padding:12px 0;border-bottom:1px solid var(--cloud-100);">
+          <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Consultation')}</span></div>
+          <span class="badge badge-slate mono">${time}</span></div>`;
+        }).join('');
+      }
+    }
+  } catch(err){ ccRenderState(document.querySelector('#doctorApptTable'), 'error', err.message, 6); }
+};
+
+/* Confirm / Decline (gates 8b/9): buttons live inside table cells; PATCH,
+   then refresh polling feed. Declining frees the slot immediately. */
+async function settle(btn, status){
+  const id = btn.dataset.confirm || btn.dataset.decline;
+  const row = btn.closest('tr');
+  btn.disabled = true;
+  try {
+    await ccApi(`/api/appointments/${id}`, { method:'PATCH', body: JSON.stringify({ status }) });
+    ccToast(status === 'Confirmed' ? 'Appointment confirmed' : 'Appointment declined — slot freed');
+    row.remove();
+    window.ccDoctorAppointmentsLoad();
+  } catch(err){
+    btn.disabled = false;
+    ccToast(err.message || 'Could not update the appointment.');
+  }
+}
+
+window.ccDoctorAppointmentsLoad = async function(){
+  const user = JSON.parse(localStorage.getItem('cloudcare_session') || 'null');
+  if(user) await window.ccLoadDoctorDashboard(user);
+};
+
+/* 30-second polling so a fresh Requested appears without manual refresh. */
+(function docApptPolling(){
+  document.getElementById('docApptRefresh')?.addEventListener('click', () => window.ccDoctorAppointmentsLoad());
+  let timer = null;
+  window.ccStartDoctorPolling = function(){
+    if(timer) clearInterval(timer);
+    timer = setInterval(() => {
+      if(document.hidden) return;
+      window.ccDoctorAppointmentsLoad();
+    }, 30000);
+  };
+})();
+</script>
+</body>
+</html>

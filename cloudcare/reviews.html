@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reviews — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+  .star-picker{display:flex;gap:6px;font-size:1.8rem;margin-bottom:6px;}
+  .star-picker span{cursor:pointer;color:var(--line);transition:color .15s;}
+  .star-picker span.filled{color:var(--gold-500);}
+  .review-card .stars{color:var(--gold-500);letter-spacing:2px;margin-bottom:10px;}
+  .review-card{position:relative;}
+  .restrict-num{font-variant-numeric:tabular-nums;}
+  .cc-error-note{color:#c9432c;font-size:.8rem;margin-top:6px;display:none;}
+  .cc-error-note.show{display:block;}
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="container">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.6"/>
+        <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff6f59" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      CloudCare
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <a href="reviews.html" class="active">Reviews</a>
+    </div>
+    <div class="nav-cta">
+      <a href="login.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="register.html" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+    <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<header>
+  <div class="container" style="padding-top:60px;padding-bottom:10px;text-align:center;">
+    <div class="eyebrow" style="margin-left:auto;margin-right:auto;">Reviews</div>
+    <h1 style="font-size:clamp(2.2rem,4.6vw,3.6rem);max-width:700px;margin:0 auto 18px;">What patients say about CloudCare doctors</h1>
+    <p style="max-width:560px;margin:0 auto;">Public ratings on one side, your own experience on the other — reviews are one page, live from the clinic.</p>
+  </div>
+</header>
+
+<section style="padding-top:20px;">
+  <div class="container">
+    <div class="grid grid-3" id="reviewGrid">
+      <!-- live doctor reviews render here -->
+    </div>
+    <div class="flex justify-between mt-16" style="gap:12px;">
+      <div id="reviewLoadState" style="font-size:.85rem;color:var(--slate-400);">Loading reviews…</div>
+      <button id="showAllBtn" class="btn btn-ghost btn-sm" style="display:none;">Show all reviews</button>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:20px;">
+  <div class="container" style="max-width:680px;">
+    <div class="card reveal">
+      <div class="section-head" style="margin-bottom:26px;">
+        <div class="eyebrow">Review a doctor</div>
+        <h2 style="font-size:1.7rem;">Share your experience</h2>
+        <p class="mb-0">Signed-in patients only · one review per doctor (a new submission updates your existing one)</p>
+        <div id="reviewAuthState" style="font-size:.85rem;color:var(--slate-400);margin-top:8px;"></div>
+      </div>
+      <form id="reviewForm">
+        <div class="field">
+          <label for="revDoctor">Doctor</label>
+          <select id="revDoctor" required><option value="">Loading doctors…</option></select>
+        </div>
+        <div class="field">
+          <label>Your rating</label>
+          <div class="star-picker" id="starPicker">
+            <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+          </div>
+          <input type="hidden" id="revRating" value="5">
+        </div>
+        <div class="field">
+          <label for="revText">Your review</label>
+          <textarea id="revText" placeholder="Between 10 and 500 characters — specifics help other patients." minlength="10" maxlength="500" required></textarea>
+          <div class="cc-error-note" id="revTextNote">Please write 10–500 characters.</div>
+        </div>
+        <button type="submit" class="btn btn-accent btn-block">Submit review</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="card reveal text-center cta-panel" style="padding:56px 40px;">
+      <h2 style="font-size:1.8rem;">Want to experience it yourself?</h2>
+      <p style="max-width:480px;margin:0 auto 22px;">Create a free account and explore your role's dashboard.</p>
+      <a href="register.html" class="btn btn-accent">Create free account</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div>
+      <a href="index.html" class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+          <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#e3faf5" stroke-width="1.2"/>
+          <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        CloudCare
+      </a>
+      <p style="color:var(--mist);opacity:.7;max-width:280px;margin-top:14px;">AI-powered cloud hospital management, built to make healthcare calmer for everyone in it.</p>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <p><a href="index.html#modules">Modules</a></p>
+      <p><a href="about.html">About the project</a></p>
+      <p><a href="reviews.html">Reviews</a></p>
+    </div>
+    <div>
+      <h4>Access</h4>
+      <p><a href="login.html">Sign in</a></p>
+      <p><a href="register.html">Create account</a></p>
+    </div>
+    <div>
+      <h4>Roles</h4>
+      <p><a href="login.html">Doctor · Patient</a></p>
+      <p><a href="login.html">Nurse · Pharmacist</a></p>
+      <p><a href="login.html">Lab · Admin</a></p>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2027 CloudCare — a BCA capstone project.</span>
+    <span>Frontend demo · No real patient data is stored.</span>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+/* ================= live reviews (gates 12b, 13) =================
+   Public listing pulls /api/reviews/*; the submit form posts to
+   /api/reviews as the signed-in patient (201 create / 200 edit).
+   All dynamic content is HTML-escaped with ccEscape. */
+
+const REVIEW_PAGE_SIZE = 9;
+
+let ccReviewsExpanded = false;
+let ccMyReviews = [];
+
+function starString(n){ return '★★★★★☆☆☆☆☆'.slice(5 - n, 10 - n); }
+
+function renderReviewCards(items){
+  const grid = document.getElementById('reviewGrid');
+  grid.innerHTML = items.map(r => {
+    const when = new Date(r.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    return `
+    <div class="card reveal review-card in">
+      <span class="badge badge-slate role-tag">${ccEscape(when)}</span>
+      <div class="stars">${starString(r.rating)}</div>
+      <p>"${ccEscape(r.text)}"</p>
+      <div class="flex items-center gap-12 mt-16">
+        <div class="avatar-sm">${ccEscape(r.author_name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</div>
+        <div>
+          <strong style="font-size:.88rem;display:block;">${ccEscape(r.author_name)}</strong>
+          <span style="font-size:.76rem;color:var(--slate-400);">about ${ccEscape(r.doctor_name)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* The API groups reviews by doctor; for the public wall we fetch each
+   doctor's page and flatten. three per doctor until "Show all reviews". */
+async function ccReviewsLoadPage(data){
+  const state = document.getElementById('reviewLoadState');
+  const showAllBtn = document.getElementById('showAllBtn');
+  if(!data.length){
+    state.textContent = 'No reviews yet — be the first to tell patients about a doctor.';
+    return;
+  }
+  /* data = [{doctor_id, average_rating, review_count}] */
+  const all = [];
+  for(const doc of data){
+    try {
+      const page = await ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=1&page_size=${ccReviewsExpanded ? 50 : 3}`);
+      all.push(...page.items);
+    } catch(err){ /* skip this doctor on error */ }
+  }
+  all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  renderReviewCards(all.slice(0, ccReviewsExpanded ? 200 : REVIEW_PAGE_SIZE));
+  state.textContent = ccReviewsExpanded ? `Showing all ${all.length} reviews` : `Showing ${Math.min(all.length, REVIEW_PAGE_SIZE)} of ${all.length}`;
+  showAllBtn.style.display = all.length > REVIEW_PAGE_SIZE ? '' : 'none';
+}
+
+document.getElementById('showAllBtn').addEventListener('click', async () => {
+  ccReviewsExpanded = true;
+  await ccReviewsReload();
+});
+
+async function ccReviewsReload(){
+  try {
+    const summaries = await ccApi('/api/reviews/summary');
+    const withReviews = summaries.filter(s => s.review_count > 0);
+    await ccReviewsLoadPage(withReviews);
+  } catch(err){
+    document.getElementById('reviewLoadState').textContent = err.message || 'Could not load reviews.';
+  }
+}
+
+/* -------- doctors dropdown for the submit form -------- */
+async function ccReviewDoctorsLoad(){
+  const sel = document.getElementById('revDoctor');
+  try {
+    const list = await ccApi('/api/doctors');
+    sel.innerHTML = ['<option value="">Select a doctor…</option>']
+      .concat(list.map(d => `<option value="${d.id}">${ccEscape(d.name)} — ${ccEscape(d.department)}${d.average_rating ? ` · ★ ${d.average_rating}` : ''}</option>`))
+      .join('');
+  } catch(err){
+    sel.innerHTML = '<option value="">Could not load doctors</option>';
+  }
+}
+
+/* -------- auth state: who can submit -------- */
+async function ccReviewAuthState(){
+  const el = document.getElementById('reviewAuthState');
+  const submitBtn = document.querySelector('#reviewForm button[type="submit"]');
+  const token = localStorage.getItem('cloudcare_token');
+  const session = ccGetSession();
+  if(!token || !session || (typeof ccSessionExpired === 'function' && ccSessionExpired())){
+    el.innerHTML = '<a href="login.html?next=' + encodeURIComponent('reviews.html') + '" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> as a patient to leave a review.';
+    if(submitBtn) submitBtn.disabled = true;
+    return;
+  }
+  try {
+    const user = await ccApi('/api/auth/me');
+    if(user.role !== 'patient'){
+      el.textContent = 'Only patient accounts can write reviews.';
+      if(submitBtn) submitBtn.disabled = true;
+      return;
+    }
+    ccMyReviews = await ccApi('/api/reviews/mine');
+    const byDoctor = {};
+    ccMyReviews.forEach(r => byDoctor[r.doctor_id] = r);
+    window.ccMyReviewByDoctor = byDoctor;
+    el.textContent = `Signed in as ${user.name} — a repeat submit for the same doctor updates your review.`;
+    if(submitBtn) submitBtn.disabled = false;
+  } catch(err){
+    el.innerHTML = '<a href="login.html" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> to leave a review.';
+    if(submitBtn) submitBtn.disabled = true;
+  }
+}
+
+/* -------- star picker -------- */
+const starPicker = document.getElementById('starPicker');
+const revRating = document.getElementById('revRating');
+function paintStars(v){
+  starPicker.querySelectorAll('span').forEach(s => s.classList.toggle('filled', +s.dataset.v <= v));
+}
+paintStars(5);
+starPicker.querySelectorAll('span').forEach(s => {
+  s.addEventListener('click', () => { revRating.value = s.dataset.v; paintStars(+s.dataset.v); });
+});
+
+/* -------- submit / edit -------- */
+document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const textNote = document.getElementById('revTextNote');
+  const text = document.getElementById('revText').value.trim();
+  const doctorId = document.getElementById('revDoctor').value;
+  const rating = +revRating.value;
+
+  if(text.length < 10 || text.length > 500){
+    textNote.classList.add('show');
+    return;
+  }
+  textNote.classList.remove('show');
+  if(!doctorId){ ccToast('Choose a doctor first.'); return; }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    const saved = await ccApi('/api/reviews', {
+      method: 'POST',
+      body: JSON.stringify({ doctor_id: doctorId, rating, text }),
+    });
+    const wasEdit = window.ccMyReviewByDoctor && window.ccMyReviewByDoctor[doctorId];
+    ccToast(wasEdit ? 'Review updated — thanks!' : 'Thanks — your review is live!');
+    e.target.reset();
+    paintStars(5);
+    await ccReviewsReload();
+    await ccReviewAuthState();
+  } catch(err){
+    ccToast(err.message || 'Could not save your review.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* -------- boot -------- */
+ccReviewsReload();
+ccReviewDoctorsLoad();
+ccReviewAuthState();
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudCare — AI-Powered Cloud Hospital Management System</title>
+<meta name="description" content="CloudCare centralizes hospitals, clinics, labs, pharmacies and patients on one secure cloud platform, with AI agents for inventory, risk prediction and resource forecasting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- ================= NAV ================= -->
+<nav class="site-nav">
+  <div class="container">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.6"/>
+        <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff6f59" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      CloudCare
+    </a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="about.html">About</a>
+      <a href="reviews.html">Reviews</a>
+    </div>
+    <div class="nav-cta">
+      <a href="login.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="register.html" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+    <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header>
+  <div class="container" style="padding-top:64px;padding-bottom:20px;text-align:center;">
+    <div class="eyebrow" style="margin-left:auto;margin-right:auto;">Cloud-native · AI-assisted · Role-based</div>
+    <h1 style="font-size:clamp(2.4rem,5.4vw,4.4rem);max-width:920px;margin:0 auto 20px;">
+      One calm, connected system<br>for every heartbeat of the hospital
+    </h1>
+    <p style="max-width:620px;margin:0 auto 34px;font-size:1.08rem;">
+      CloudCare unifies patients, doctors, nurses, pharmacists, lab technicians and administrators on a single
+      secure cloud platform — with AI agents quietly predicting what the hospital will need next.
+    </p>
+    <div class="flex items-center justify-between" style="justify-content:center;gap:16px;margin-bottom:56px;flex-wrap:wrap;">
+      <a href="register.html" class="btn btn-accent">Create your account</a>
+      <a href="login.html" class="btn btn-ghost">I already have an account</a>
+    </div>
+
+    <!-- Signature pulse line -->
+    <svg class="pulse-line divider-pulse" viewBox="0 0 640 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="pulseGradient" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#22d3b5"/>
+          <stop offset="55%" stop-color="#ff5a3c"/>
+          <stop offset="100%" stop-color="#f0a20c"/>
+        </linearGradient>
+      </defs>
+      <path class="pulse-track" d="M0 45 H180 L205 15 L230 75 L255 25 L278 45 H340 L365 10 L392 80 L418 45 H640"/>
+      <path class="pulse-sweep" d="M0 45 H180 L205 15 L230 75 L255 25 L278 45 H340 L365 10 L392 80 L418 45 H640"/>
+      <circle class="pulse-dot" cx="0" cy="45" r="5"></circle>
+    </svg>
+  </div>
+</header>
+
+<!-- ================= LIVE-STAT STRIP ================= -->
+<section style="padding-top:24px;padding-bottom:40px;">
+  <div class="container">
+    <div class="grid grid-4">
+      <div class="card reveal text-center">
+        <h3 class="mono" style="font-size:2.1rem;color:var(--mint-300);">128k+</h3>
+        <p class="mb-0">Patients supported across pilot hospitals</p>
+      </div>
+      <div class="card reveal text-center">
+        <h3 class="mono" style="font-size:2.1rem;color:var(--mint-300);">96.4%</h3>
+        <p class="mb-0">Bed-occupancy forecast accuracy</p>
+      </div>
+      <div class="card reveal text-center">
+        <h3 class="mono" style="font-size:2.1rem;color:var(--mint-300);">6</h3>
+        <p class="mb-0">Dedicated role-based dashboards</p>
+      </div>
+      <div class="card reveal text-center">
+        <h3 class="mono" style="font-size:2.1rem;color:var(--mint-300);">3</h3>
+        <p class="mb-0">AI agents working around the clock</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AI SPOTLIGHT — PATIENT HEALTH RISK SCORE ================= -->
+<section id="ai-agent">
+  <div class="container grid grid-2" style="align-items:center;gap:56px;">
+    <div class="reveal">
+      <div class="eyebrow">Inside every patient record</div>
+      <h2 style="font-size:2.4rem;">Meet the AI agent that watches for risk before symptoms do</h2>
+      <p>The <strong>Patient Health Risk Score</strong> agent reads each patient's history — vitals, labs, diagnoses,
+      medication trends — and continuously estimates their risk of chronic conditions like diabetes, cardiac disease
+      and stroke. Doctors see a clear score and a plain-language explanation, not a black box.</p>
+      <ul style="color:var(--slate-500);line-height:2;padding-left:20px;margin-bottom:26px;">
+        <li>Recalculates automatically whenever new vitals or lab results come in</li>
+        <li>Surfaces the specific factors driving a patient's score — no guesswork</li>
+        <li>Flags high-risk patients directly on the doctor and admin dashboards</li>
+        <li>Turns reactive checkups into proactive, earlier intervention</li>
+      </ul>
+    </div>
+    <div class="reveal">
+      <div class="ai-card coral" style="padding:34px;">
+        <span class="ai-tag">AI Agent</span>
+        <h3 style="font-size:1.4rem;margin-top:10px;">Patient Health Risk Score</h3>
+        <p>Live example — Simran Kaur, Type 2 Diabetes follow-up</p>
+        <div class="grid grid-2 mt-16" style="gap:14px;">
+          <div class="card" style="padding:16px;">
+            <span class="stat-label">Risk score</span>
+            <h3 style="font-size:1.6rem;color:var(--coral-500);">82%</h3>
+          </div>
+          <div class="card" style="padding:16px;">
+            <span class="stat-label">Category</span>
+            <h3 style="font-size:1.6rem;">High</h3>
+          </div>
+        </div>
+        <p style="margin-top:16px;font-size:.9rem;">Driven by: rising HbA1c across last 3 visits, mild hypertension,
+        and a family history of Type 2 diabetes. Recommended: dietary consult within 2 weeks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SECURITY & TRUST ================= -->
+<section style="background:var(--teal-950);">
+  <div class="container">
+    <div class="section-head center">
+      <div class="eyebrow" style="background:rgba(255,255,255,.1);color:var(--mint-300);">Trust &amp; safety</div>
+      <h2 style="color:#fff;font-size:2.4rem;">Built to handle sensitive health data responsibly</h2>
+      <p style="color:var(--mist);opacity:.75;">Every hospital that adopts CloudCare is trusting it with real patient
+      lives, not just records — so security and accountability come first.</p>
+    </div>
+    <div class="grid grid-4">
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🔒</div>
+        <h3 style="font-size:1.05rem;">Encrypted by default</h3>
+        <p class="mb-0">Data encrypted in transit and at rest, across every role's dashboard.</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🪪</div>
+        <h3 style="font-size:1.05rem;">Role-based access</h3>
+        <p class="mb-0">Each login sees only what their role needs — nothing more.</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🧾</div>
+        <h3 style="font-size:1.05rem;">Full audit trails</h3>
+        <p class="mb-0">Every record view or edit is logged for accountability and compliance.</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🕒</div>
+        <h3 style="font-size:1.05rem;">24/7 monitoring</h3>
+        <p class="mb-0">Uptime and system health watched around the clock, every day of the year.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA ================= -->
+<section>
+  <div class="container">
+    <div class="card reveal cta-panel" style="text-align:center;padding:64px 40px;">
+      <h2 style="font-size:2rem;">Ready to see CloudCare from the inside?</h2>
+      <p style="max-width:520px;margin:0 auto 26px;">Create a free demo account and pick any role — the dashboard adapts instantly.</p>
+      <div class="flex items-center justify-between" style="justify-content:center;gap:16px;flex-wrap:wrap;">
+        <a href="register.html" class="btn btn-accent">Create free account</a>
+        <a href="reviews.html" class="btn btn-ghost">Read what users say</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="container">
+    <div>
+      <a href="index.html" class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+          <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#e3faf5" stroke-width="1.2"/>
+          <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        CloudCare
+      </a>
+      <p style="color:var(--mist);opacity:.7;max-width:280px;margin-top:14px;">AI-powered cloud hospital management, built to make healthcare calmer for everyone in it.</p>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <p><a href="index.html#ai-agent">AI Agent</a></p>
+      <p><a href="about.html">About the project</a></p>
+      <p><a href="reviews.html">Reviews</a></p>
+    </div>
+    <div>
+      <h4>Access</h4>
+      <p><a href="login.html">Sign in</a></p>
+      <p><a href="register.html">Create account</a></p>
+    </div>
+    <div>
+      <h4>Roles</h4>
+      <p><a href="login.html">Doctor · Patient</a></p>
+      <p><a href="login.html">Nurse · Pharmacist</a></p>
+      <p><a href="login.html">Lab · Admin</a></p>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2027 CloudCare — a BCA capstone project.</span>
+    <span>Frontend demo · No real patient data is stored.</span>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+</body>
+</html>

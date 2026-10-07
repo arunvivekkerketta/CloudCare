@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="container">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.6"/>
+        <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff6f59" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      CloudCare
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="about.html" class="active">About</a>
+      <a href="reviews.html">Reviews</a>
+    </div>
+    <div class="nav-cta">
+      <a href="login.html" class="btn btn-ghost btn-sm">Sign in</a>
+      <a href="register.html" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+    <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<header>
+  <div class="container" style="padding-top:60px;padding-bottom:10px;text-align:center;">
+    <div class="eyebrow" style="margin-left:auto;margin-right:auto;">About the project</div>
+    <h1 style="font-size:clamp(2.2rem,4.6vw,3.6rem);max-width:760px;margin:0 auto 18px;">
+      Healthcare has enough friction. CloudCare removes what it can.
+    </h1>
+    <p style="max-width:640px;margin:0 auto;font-size:1.05rem;">
+      CloudCare is an AI-powered, cloud-based Hospital Management System built to connect hospitals, clinics,
+      laboratories, pharmacies and patients on one secure platform — replacing fragmented paperwork with
+      predictive, role-aware software.
+    </p>
+  </div>
+</header>
+
+<section style="padding-top:40px;">
+  <div class="container grid grid-2" style="align-items:center;gap:56px;">
+    <div class="reveal">
+      <div class="eyebrow">The problem</div>
+      <h2 style="font-size:1.9rem;">Most hospital software only stores records. It doesn't think.</h2>
+      <p>Traditional Hospital Management Systems focus on storing patient data and managing appointments, but leave
+      administrators without predictive tools. The result: fragmented data, medicine shortages, long patient
+      waiting times, and reactive — not proactive — resource planning.</p>
+      <p>CloudCare pairs cloud infrastructure with three purpose-built AI agents so hospitals can see problems
+      coming, not just record them after the fact.</p>
+    </div>
+    <div class="reveal">
+      <div class="eyebrow">Our approach</div>
+      <h2 style="font-size:1.9rem;">Centralize. Predict. Simplify.</h2>
+      <ul style="color:var(--slate-500);line-height:2;padding-left:20px;">
+        <li>Centralize hospital operations behind role-based dashboards</li>
+        <li>Improve communication between departments in real time</li>
+        <li>Surface AI-driven insight, not just raw data</li>
+        <li>Cut manual administrative work wherever possible</li>
+        <li>Predict future needs — stock, beds, staffing — before they're urgent</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="section-head center">
+      <div class="eyebrow">Alignment</div>
+      <h2 style="font-size:2.1rem;">Built with the UN Sustainable Development Goals in mind</h2>
+    </div>
+    <div class="grid grid-4">
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">💚</div>
+        <h3 style="font-size:1.4rem;">SDG 3</h3>
+        <p class="mb-0">Good health &amp; well-being</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🏗️</div>
+        <h3 style="font-size:1.4rem;">SDG 9</h3>
+        <p class="mb-0">Industry, innovation &amp; infrastructure</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">⚖️</div>
+        <h3 style="font-size:1.4rem;">SDG 10</h3>
+        <p class="mb-0">Reduced inequalities in access</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="card-icon" style="margin:0 auto 14px;">🕊️</div>
+        <h3 style="font-size:1.4rem;">SDG 16</h3>
+        <p class="mb-0">Strong, transparent institutions</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--teal-950);">
+  <div class="container">
+    <div class="section-head center">
+      <div class="eyebrow" style="background:rgba(255,255,255,.1);color:var(--mint-300);">Under the hood</div>
+      <h2 style="color:#fff;font-size:2.1rem;">This build</h2>
+      <p style="color:var(--mist);opacity:.75;">This deliverable is the CloudCare <strong>frontend</strong> — a fully interactive, static
+      demo covering every role's UI. It runs entirely in the browser, with demo data standing in for the backend and AI services described below.</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="card reveal">
+        <div class="card-icon">🎨</div>
+        <h3 style="font-size:1.05rem;">Frontend (this build)</h3>
+        <p class="mb-0">HTML5, CSS3 and vanilla JavaScript — responsive layouts, animated backgrounds and role-based dashboards, no build step required.</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">⚙️</div>
+        <h3 style="font-size:1.05rem;">Backend (planned)</h3>
+        <p class="mb-0">Node.js, Express.js and Python (FastAPI) handling auth, workflows and AI model integration via REST.</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🗄️</div>
+        <h3 style="font-size:1.05rem;">Data layer (planned)</h3>
+        <p class="mb-0">PostgreSQL and MongoDB for structured and unstructured records, with Redis caching sessions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="section-head center">
+      <div class="eyebrow">Team</div>
+      <h2 style="font-size:2.1rem;">Built by</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card reveal text-center">
+        <div class="avatar-sm" style="width:56px;height:56px;font-size:1.1rem;margin:0 auto 14px;">AS</div>
+        <h3 style="font-size:1.1rem;">Abin Sebastian</h3>
+        <p class="mb-0 mono" style="font-size:.8rem;">24215003</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="avatar-sm" style="width:56px;height:56px;font-size:1.1rem;margin:0 auto 14px;">AK</div>
+        <h3 style="font-size:1.1rem;">Arun Vivek Kerketta</h3>
+        <p class="mb-0 mono" style="font-size:.8rem;">24215011</p>
+      </div>
+      <div class="card reveal text-center">
+        <div class="avatar-sm" style="width:56px;height:56px;font-size:1.1rem;margin:0 auto 14px;">MB</div>
+        <h3 style="font-size:1.1rem;">Manya Bist</h3>
+        <p class="mb-0 mono" style="font-size:.8rem;">24215025</p>
+      </div>
+    </div>
+    <p class="text-center mt-32" style="color:var(--slate-400);font-size:.9rem;">5 BCA A · School of Sciences · 2024–2027<br>Guided by Prof. Neha Saini and Dr. Neelam Yadav</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="card reveal text-center cta-panel" style="padding:56px 40px;">
+      <h2 style="font-size:1.8rem;">Ready to see it for yourself?</h2>
+      <p style="max-width:480px;margin:0 auto 22px;">Create a free account and jump into any role's dashboard in seconds — no real data required.</p>
+      <a href="register.html" class="btn btn-accent">Get started</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div>
+      <a href="index.html" class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+          <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#e3faf5" stroke-width="1.2"/>
+          <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        CloudCare
+      </a>
+      <p style="color:var(--mist);opacity:.7;max-width:280px;margin-top:14px;">AI-powered cloud hospital management, built to make healthcare calmer for everyone in it.</p>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <p><a href="index.html#modules">Modules</a></p>
+      <p><a href="about.html">About the project</a></p>
+      <p><a href="reviews.html">Reviews</a></p>
+    </div>
+    <div>
+      <h4>Access</h4>
+      <p><a href="login.html">Sign in</a></p>
+      <p><a href="register.html">Create account</a></p>
+    </div>
+    <div>
+      <h4>Roles</h4>
+      <p><a href="login.html">Doctor · Patient</a></p>
+      <p><a href="login.html">Nurse · Pharmacist</a></p>
+      <p><a href="login.html">Lab · Admin</a></p>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2027 CloudCare — a BCA capstone project.</span>
+    <span>Frontend demo · No real patient data is stored.</span>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+</body>
+</html>

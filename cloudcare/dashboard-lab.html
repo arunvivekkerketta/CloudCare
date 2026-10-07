@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Dashboard — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
+</head>
+<body>
+
+<div class="dash-shell">
+  <aside class="dash-sidebar">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none"><path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.4"/><path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      CloudCare
+    </a>
+    <div class="side-role">
+      <div class="avatar" data-user-avatar>LT</div>
+      <div><strong data-user-name></strong><span data-user-role>Lab Technician</span></div>
+    </div>
+    <nav class="side-nav">
+      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
+      <a data-panel="requests"><span class="ic">🧪</span>Test Requests</a>
+      <a data-panel="samples"><span class="ic">🧬</span>Sample Tracking</a>
+      <a data-panel="upload"><span class="ic">📤</span>Upload Results</a>
+      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+    </nav>
+    <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
+  </aside>
+
+  <main class="dash-main">
+    <div class="dash-topbar">
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Central Laboratory · Shift: 7 AM – 3 PM</p></div>
+      <div class="flex items-center gap-12">
+        <span class="badge badge-mint">● Lab open</span>
+        <div class="avatar-sm" data-user-avatar>LT</div>
+      </div>
+    </div>
+
+    <div class="dash-body">
+
+      <section class="panel-view active" id="panel-overview">
+        <div class="grid grid-4 mb-0">
+          <div class="stat-card"><h3>9</h3><span class="stat-label">Pending test requests</span></div>
+          <div class="stat-card"><h3>5</h3><span class="stat-label">Samples in processing</span></div>
+          <div class="stat-card"><h3>21</h3><span class="stat-label">Results uploaded today</span></div>
+          <div class="stat-card"><h3>2</h3><span class="stat-label">Priority (STAT) requests</span></div>
+        </div>
+        <div class="panel mt-24">
+          <div class="panel-head"><h3>Priority queue</h3></div>
+          <div class="panel-body" id="priorityList"></div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-requests">
+        <div class="panel">
+          <div class="panel-head"><h3>Incoming test requests</h3><span class="badge badge-slate" id="reqBadge">0 pending</span></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>Patient</th><th>Test</th><th>Ordered by</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody id="reqTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-samples">
+        <div class="panel">
+          <div class="panel-head"><h3>Sample tracking</h3></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>Sample ID</th><th>Patient</th><th>Type</th><th>Stage</th></tr></thead>
+            <tbody id="sampleTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-upload">
+        <div class="panel" style="max-width:640px;">
+          <div class="panel-head"><h3>Upload test result</h3></div>
+          <div class="panel-body">
+            <form onsubmit="event.preventDefault(); ccToast('Lab results module coming soon');">
+              <div class="field"><label>Sample ID</label>
+                <select disabled><option>No samples available — lab results module coming soon</option></select>
+              </div>
+              <div class="grid grid-2">
+                <div class="field"><label>Result value</label><input type="text" placeholder="e.g. 7.8%"></div>
+                <div class="field"><label>Reference range</label><input type="text" placeholder="e.g. 4.0 – 5.6%"></div>
+              </div>
+              <div class="field"><label>Interpretation notes</label><textarea placeholder="Any flags for the ordering doctor…"></textarea></div>
+              <div class="field"><label>Attach report file</label><input type="file"></div>
+              <button type="submit" class="btn btn-accent">Upload &amp; notify doctor</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-profile">
+        <div class="panel settings-panel">
+          <div class="settings-head">
+            <div class="settings-avatar" data-user-avatar>LT</div>
+            <h3 data-profile-name></h3>
+            <p data-profile-role>Lab Tech</p>
+          </div>
+          <div class="panel-body">
+            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
+            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
+            <div class="field"><label>Lab section</label><input type="text" placeholder="e.g. Central Laboratory"></div>
+            <div class="flex gap-12 mt-8">
+              <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
+              <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
+            </div>
+            <div class="risk-row mt-24" style="border-top:1px solid var(--line);padding-top:18px;">
+              <div><strong style="display:block;font-size:.9rem;">Password</strong><span style="font-size:.78rem;color:var(--slate-400);">Keep your account secure with a strong password.</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="ccOpenChangePassword()">Change password</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>ccGuardDashboard('lab').then(user => { if(user) window.ccLoadLabDashboard(user); });</script>
+<script>
+window.ccLoadLabDashboard = async function(user){
+  /* priority queue — appointments waiting or checked in are treated as STAT */
+  try {
+    const appts = await ccApi('/api/appointments?page_size=100');
+    const stat = appts.filter(a => a.status === 'Waiting' || a.status === 'Checked in');
+    const priorityList = document.getElementById('priorityList');
+    if(!stat.length){
+      priorityList.innerHTML = '<div class="risk-row" style="padding:14px 0;"><span style="color:var(--slate-400);font-size:.85rem;">No priority (STAT) requests.</span></div>';
+    } else {
+      priorityList.innerHTML = stat.map(a => `
+        <div class="risk-row" style="padding:14px 0;border-bottom:1px solid var(--cloud-100);">
+          <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)} — ${ccEscape(a.department)}</strong><span style="font-size:.78rem;color:var(--slate-400);">${ccEscape(a.reason || 'Sample collection pending')} · ${ccEscape(a.status)}</span></div>
+          <button class="btn btn-sm btn-accent" onclick="ccToast('Lab orders module coming soon')">Start processing</button></div>`).join('');
+    }
+
+    /* test requests table */
+    const tbody = document.getElementById('reqTable');
+    const badge = document.getElementById('reqBadge');
+    if(badge) badge.textContent = `${appts.length} pending`;
+    if(!appts.length){
+      ccRenderState(tbody, 'empty', 'No test requests.', 5);
+    } else {
+      tbody.innerHTML = appts.map(a => {
+        const statFlag = a.status === 'Waiting' || a.status === 'Checked in';
+        return `<tr><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || a.department)}</td><td>${ccEscape(a.doctor_name)}</td>
+          <td><span class="badge ${statFlag?'badge-coral':'badge-slate'}">${statFlag?'STAT':'Routine'}</span></td>
+          <td><span class="badge ${a.status==='Checked in'?'badge-gold':'badge-slate'}">${ccEscape(a.status)}</span></td></tr>`;
+      }).join('');
+    }
+
+    /* sample tracking — no backend module yet, clearly marked */
+    ccRenderState(document.getElementById('sampleTable'), 'empty', 'Lab samples module coming soon.', 4);
+  } catch(err){
+    document.getElementById('priorityList').innerHTML = `<div class="risk-row" style="padding:14px 0;color:#c9432c;font-size:.85rem;">${ccEscape(err.message)}</div>`;
+    ccRenderState(document.getElementById('reqTable'), 'error', err.message, 5);
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Netlify config — CloudCare static frontend.
+# In the Netlify UI: Base directory = "cloudcare" (publish dir = the inner
+# cloudcare/ folder). This file lives at repo root and is picked up automatically.
+
+[build]
+  base = "cloudcare"
+  publish = "."
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Friendly 404 for unknown paths.
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
+
+# Security headers, including a CSP that allows cdnjs (Chart.js) + Google Fonts.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://cloudcare-api.onrender.com http://127.0.0.1:8000 http://localhost:8000"

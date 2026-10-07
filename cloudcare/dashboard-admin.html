@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Console — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  .panel-view{display:none;} .panel-view.active{display:block;}
+  .ai-agent-tabs{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
+  .risk-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--cloud-100);}
+  .risk-row:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+
+<div class="dash-shell">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="dash-sidebar">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.4"/>
+        <path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      CloudCare
+    </a>
+    <div class="side-role">
+      <div class="avatar" data-user-avatar>AD</div>
+      <div>
+        <strong data-user-name></strong>
+        <span data-user-role>Administrator</span>
+      </div>
+    </div>
+    <nav class="side-nav" id="sideNav">
+      <a data-panel="overview" class="active"><span class="ic">📊</span>Overview</a>
+      <a data-panel="patients"><span class="ic">🧑‍⚕️</span>Patients</a>
+      <a data-panel="doctors"><span class="ic">🩺</span>Doctors &amp; Staff</a>
+      <a data-panel="accounts"><span class="ic">👥</span>Accounts</a>
+      <a data-panel="specialties"><span class="ic">🏷️</span>Specialties</a>
+      <a data-panel="appointments"><span class="ic">📅</span>Appointments</a>
+      <a data-panel="reviews"><span class="ic">⭐</span>Reviews</a>
+      <a data-panel="billing"><span class="ic">💳</span>Billing</a>
+      <a data-panel="ai-console"><span class="ic">🤖</span>AI Agent Console</a>
+      <a data-panel="reports"><span class="ic">📈</span>Reports</a>
+      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+    </nav>
+    <div class="side-foot">
+      <a data-logout href="#"><span class="ic">↩</span>Sign out</a>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="dash-main">
+    <div class="dash-topbar">
+      <div>
+        <h1 id="topbarTitle">Overview</h1>
+        <p class="sub">CloudCare · Hospital-wide control center</p>
+      </div>
+      <div class="flex items-center gap-12">
+        <span class="badge badge-mint">● All systems normal</span>
+        <div class="avatar-sm" data-user-avatar>AD</div>
+      </div>
+    </div>
+
+    <div class="dash-body">
+
+      <!-- ===== OVERVIEW ===== -->
+      <section class="panel-view active" id="panel-overview">
+        <div class="grid grid-4 mb-0">
+          <div class="stat-card reveal in">
+            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">🧑‍⚕️</div><span class="stat-trend up">▲ 4.2%</span></div>
+            <h3>4,812</h3><span class="stat-label">Total patients</span>
+          </div>
+          <div class="stat-card reveal in">
+            <div class="stat-top"><div class="stat-icon" style="background:var(--coral-100);">🩺</div><span class="stat-trend up">▲ 1.1%</span></div>
+            <h3>186</h3><span class="stat-label">Active doctors</span>
+          </div>
+          <div class="stat-card reveal in">
+            <div class="stat-top"><div class="stat-icon" style="background:#fbf1dc;">📅</div><span class="stat-trend up">▲ 8.6%</span></div>
+            <h3>923</h3><span class="stat-label">Appointments this week</span>
+          </div>
+          <div class="stat-card reveal in">
+            <div class="stat-top"><div class="stat-icon" style="background:var(--mint-100);">💰</div><span class="stat-trend down">▼ 2.3%</span></div>
+            <h3>₹41.2L</h3><span class="stat-label">Revenue (MTD)</span>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mt-24">
+          <div class="panel reveal in">
+            <div class="panel-head"><h3>Patient admissions — last 8 weeks</h3></div>
+            <div class="panel-body"><canvas id="admissionsChart" height="200"></canvas></div>
+          </div>
+          <div class="panel reveal in">
+            <div class="panel-head"><h3>Department load</h3></div>
+            <div class="panel-body"><canvas id="deptChart" height="200"></canvas></div>
+          </div>
+        </div>
+
+        <div class="panel mt-24 reveal in">
+          <div class="panel-head">
+            <h3>AI agents — live signal</h3>
+            <a data-panel-link="ai-console" class="btn btn-ghost btn-sm">Open console →</a>
+          </div>
+          <div class="panel-body grid grid-3">
+            <div class="ai-card">
+              <span class="ai-tag">Inventory</span>
+              <h3 style="font-size:1.1rem;">12 SKUs at risk</h3>
+              <p style="font-size:.85rem;">Reorder drafts ready for review.</p>
+            </div>
+            <div class="ai-card coral">
+              <span class="ai-tag">Health risk</span>
+              <h3 style="font-size:1.1rem;">37 high-risk patients</h3>
+              <p style="font-size:.85rem;">Flagged this week for follow-up.</p>
+            </div>
+            <div class="ai-card gold">
+              <span class="ai-tag">Resource forecast</span>
+              <h3 style="font-size:1.1rem;">ICU at 88% in 6 days</h3>
+              <p style="font-size:.85rem;">Recommend adding 2 float nurses.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PATIENTS ===== -->
+      <section class="panel-view" id="panel-patients">
+        <div class="panel reveal in">
+          <div class="panel-head">
+            <h3>Patient directory</h3>
+            <input type="search" placeholder="Search patients…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+          </div>
+          <div class="panel-body" style="padding-top:0;">
+            <table>
+              <thead><tr><th>Patient</th><th>Age</th><th>Condition</th><th>Doctor</th><th>Risk</th><th>Status</th></tr></thead>
+              <tbody id="patientTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== DOCTORS ===== -->
+      <section class="panel-view" id="panel-doctors">
+        <div class="panel reveal in" style="margin-bottom:24px;">
+          <div class="panel-head">
+            <h3>Doctors</h3>
+            <button class="btn btn-ghost btn-sm" id="docManageToggle">Manage shifts &amp; leaves</button>
+          </div>
+          <div class="panel-body" style="padding-top:0;">
+            <table>
+              <thead><tr><th>Name</th><th>Department</th><th>Email</th><th>Shifts</th><th>Rating</th><th></th></tr></thead>
+              <tbody id="adminDoctorTable"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="grid grid-3" id="doctorGrid" style="display:none;"></div>
+        <div class="panel" id="docManagePanel" style="display:none;margin-top:24px;">
+          <div class="panel-head">
+            <h3 id="docManageTitle">Manage shifts &amp; leaves</h3>
+            <button class="btn btn-ghost btn-sm" id="docManageClose">Close</button>
+
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="docManageSelect">Doctor</label>
+              <select id="docManageSelect"><option value="">Loading…</option></select>
+            </div>
+            <div id="docManageContent" style="margin-top:18px;"></div>
+          </div
+        ></div>
+      </section>
+
+      <!-- ===== ACCOUNTS (user management) ===== -->
+      <section class="panel-view" id="panel-accounts">
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="panel reveal in" style="margin-bottom:24px;">
+            <div class="panel-head">
+              <h3>All accounts</h3>
+              <select id="accountRoleFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+                <option value="">All roles</option>
+                <option value="patient">Patients</option>
+                <option value="doctor">Doctors</option>
+                <option value="nurse">Nurses</option>
+                <option value="pharmacist">Pharmacists</option>
+                <option value="lab">Lab</option>
+                <option value="admin">Admins</option>
+              </select>
+            </div>
+            <div class="panel-body" style="padding-top:0;">
+              <table>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th></th></tr></thead>
+                <tbody id="accountTable"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Add an account</h3></div>
+            <div class="panel-body">
+              <form id="accountForm">
+                <div class="field"><label for="accName">Full name</label><input id="accName" type="text" required minlength="2" maxlength="255"></div>
+                <div class="field"><label for="accEmail">Email</label><input id="accEmail" type="email" required></div>
+                <div class="field"><label for="accPassword">Password</label><input id="accPassword" type="password" required minlength="8" maxlength="128" placeholder="Min 8 characters, letters + numbers"></div>
+                <div class="cc-field-row">
+                  <div class="field"><label for="accRole">Role</label>
+                    <select id="accRole">
+                      <option value="doctor">Doctor</option>
+                      <option value="nurse">Nurse</option>
+                      <option value="pharmacist">Pharmacist</option>
+                      <option value="lab">Lab</option>
+                      <option value="admin">Admin</option>
+                      <option value="patient">Patient</option>
+                    </select>
+                  </div>
+                  <div class="field"><label for="accDept">Department (optional)</label><input id="accDept" type="text" maxlength="100" placeholder="e.g. Cardiology"></div>
+                </div>
+                <button type="submit" class="btn btn-primary">Create account</button>
+              </form>
+              <p class="mb-0" style="font-size:.8rem;color:var(--slate-400);margin-top:16px;">
+                You cannot change your own role or delete your own account — the server refuses both.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== APPOINTMENTS ===== -->
+      <section class="panel-view" id="panel-appointments">
+        <div class="panel reveal in">
+          <div class="panel-head">
+            <h3>Clinic appointments</h3>
+            <select id="apptStatusFilter" style="padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;">
+              <option value="">All statuses</option>
+              <option value="Requested">Requested</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Declined">Declined</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="panel-body" style="padding-top:0;">
+            <table>
+              <thead><tr><th>When</th><th>Patient</th><th>Doctor</th><th>Department</th><th>Mode</th><th>Status</th></tr></thead>
+              <tbody id="apptTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== REVIEWS (moderation) ===== -->
+      <section class="panel-view" id="panel-reviews">
+        <div class="panel reveal in">
+          <div class="panel-head"><h3>Review moderation</h3><span class="badge badge-slate">Removal is permanent</span></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table>
+              <thead><tr><th>Doctor</th><th>Author</th><th>Rating</th><th>Review</th><th></th></tr></thead>
+              <tbody id="adminReviewTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== BILLING ===== -->
+      <section class="panel-view" id="panel-billing">
+        <div class="grid grid-3 mb-0">
+          <div class="stat-card"><h3>₹41.2L</h3><span class="stat-label">Collected (MTD)</span></div>
+          <div class="stat-card"><h3>₹6.8L</h3><span class="stat-label">Pending invoices</span></div>
+          <div class="stat-card"><h3>94%</h3><span class="stat-label">Claims approved</span></div>
+        </div>
+        <div class="panel mt-24 reveal in">
+          <div class="panel-head"><h3>Recent invoices</h3></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table>
+              <thead><tr><th>Invoice</th><th>Patient</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody id="billTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SPECIALTIES ===== -->
+      <section class="panel-view" id="panel-specialties">
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="panel reveal in" style="margin-bottom:24px;">
+            <div class="panel-head"><h3>Specialties</h3></div>
+            <div class="panel-body" style="padding-top:0;">
+              <table>
+                <thead><tr><th>Name</th><th></th></tr></thead>
+                <tbody id="specialtyTable"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Add a specialty</h3></div>
+            <div class="panel-body">
+              <form id="specialtyForm">
+                <div class="field">
+                  <label for="specialtyName">Name</label>
+                  <input id="specialtyName" type="text" placeholder="e.g. Dermatology" required minlength="2" maxlength="100">
+                </div>
+                <button type="submit" class="btn btn-primary">Add specialty</button>
+              </form>
+              <p class="mb-0" style="font-size:.8rem;color:var(--slate-400);margin-top:16px;">
+                A specialty cannot be removed while it is some doctor's department — re-map the doctor first.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== AI CONSOLE ===== -->
+      <section class="panel-view" id="panel-ai-console">
+        <div class="ai-agent-tabs">
+          <button class="chip-tab active" data-agent="inventory">📦 Inventory Prediction</button>
+          <button class="chip-tab" data-agent="risk">❤️ Patient Health Risk</button>
+          <button class="chip-tab" data-agent="resource">🛎️ Resource Forecast</button>
+        </div>
+
+        <div class="agent-view active" data-agent-view="inventory">
+          <div class="grid grid-2">
+            <div class="panel">
+              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-coral">12 at risk</span></div>
+              <div class="panel-body"><canvas id="inventoryChart" height="220"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>Auto-drafted reorders</h3></div>
+              <div class="panel-body" id="reorderList" style="padding-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-view" data-agent-view="risk" style="display:none;">
+          <div class="grid grid-2">
+            <div class="panel">
+              <div class="panel-head"><h3>Risk distribution</h3></div>
+              <div class="panel-body"><canvas id="riskChart" height="220"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>Flagged patients this week</h3></div>
+              <div class="panel-body" id="riskList" style="padding-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="agent-view" data-agent-view="resource" style="display:none;">
+          <div class="grid grid-2">
+            <div class="panel">
+              <div class="panel-head"><h3>14-day bed &amp; ICU forecast</h3></div>
+              <div class="panel-body"><canvas id="resourceChart" height="220"></canvas></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>Staffing recommendations</h3></div>
+              <div class="panel-body" id="resourceList" style="padding-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== REPORTS ===== -->
+      <section class="panel-view" id="panel-reports">
+        <div class="panel reveal in">
+          <div class="panel-head"><h3>Monthly performance report</h3><button class="btn btn-ghost btn-sm" onclick="ccToast('Report exported (demo)')">Export PDF</button></div>
+          <div class="panel-body"><canvas id="reportChart" height="220"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ===== PROFILE ===== -->
+      <section class="panel-view" id="panel-profile">
+        <div class="panel reveal in settings-panel">
+          <div class="settings-head">
+            <div class="settings-avatar" data-user-avatar>AD</div>
+            <h3 data-profile-name></h3>
+            <p data-profile-role>Administrator</p>
+          </div>
+          <div class="panel-body">
+            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
+            <div class="field"><label>Admin email</label><input type="email" data-profile-email-input></div>
+            <div class="field"><label>Hospital name</label><input type="text" value="CloudCare General Hospital"></div>
+            <div class="field"><label>Time zone</label><select><option>Asia/Kolkata (IST)</option></select></div>
+            <div class="flex gap-12 mt-8">
+              <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
+              <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
+            </div>
+            <div class="risk-row mt-24" style="border-top:1px solid var(--line);padding-top:18px;">
+              <div><strong style="display:block;font-size:.9rem;">Password</strong><span style="font-size:.78rem;color:var(--slate-400);">Keep your account secure with a strong password.</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="ccOpenChangePassword()">Change password</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>ccGuardDashboard('admin').then(user => { if(user) window.ccLoadAdminDashboard(); });</script>
+<script src="assets/js/dashboard-admin.js"></script>
+<script src="assets/js/dashboard-admin-ops.js"></script>
+</body>
+</html>

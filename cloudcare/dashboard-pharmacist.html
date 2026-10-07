@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){try{var t=localStorage.getItem("cloudcare_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharmacist Dashboard — CloudCare</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
+</head>
+<body>
+
+<div class="dash-shell">
+  <aside class="dash-sidebar">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none"><path d="M11 25a7 7 0 0 1 1-13.9A9 9 0 0 1 29 13.6 6.5 6.5 0 0 1 28 26H12a5 5 0 0 1-1-1Z" fill="#4fd1c5" stroke="#0b3b36" stroke-width="1.4"/><path d="M6 22h5l2-4 3 7 2-9 2 6h6" stroke="#ff8b76" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      CloudCare
+    </a>
+    <div class="side-role">
+      <div class="avatar" data-user-avatar>PH</div>
+      <div><strong data-user-name></strong><span data-user-role>Pharmacist</span></div>
+    </div>
+    <nav class="side-nav">
+      <a data-panel="overview" class="active"><span class="ic">🏠</span>Overview</a>
+      <a data-panel="queue"><span class="ic">💊</span>Prescription Queue</a>
+      <a data-panel="inventory"><span class="ic">📦</span>Inventory</a>
+      <a data-panel="history"><span class="ic">🧾</span>Dispensed History</a>
+      <a data-panel="profile"><span class="ic">👤</span>Profile</a>
+    </nav>
+    <div class="side-foot"><a data-logout href="#"><span class="ic">↩</span>Sign out</a></div>
+  </aside>
+
+  <main class="dash-main">
+    <div class="dash-topbar">
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Central Pharmacy · Counter 2</p></div>
+      <div class="flex items-center gap-12">
+        <span class="badge badge-mint">● Counter open</span>
+        <div class="avatar-sm" data-user-avatar>PH</div>
+      </div>
+    </div>
+
+    <div class="dash-body">
+
+      <section class="panel-view active" id="panel-overview">
+        <div class="grid grid-4 mb-0">
+          <div class="stat-card"><h3>7</h3><span class="stat-label">Prescriptions in queue</span></div>
+          <div class="stat-card"><h3>12</h3><span class="stat-label">Items low on stock</span></div>
+          <div class="stat-card"><h3>134</h3><span class="stat-label">Dispensed today</span></div>
+          <div class="stat-card"><h3>3</h3><span class="stat-label">Pending reorders</span></div>
+        </div>
+        <div class="panel mt-24">
+          <div class="panel-head"><h3>Stock levels — top medicines</h3></div>
+          <div class="panel-body"><canvas id="stockChart" height="210"></canvas></div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-queue">
+        <div class="panel">
+          <div class="panel-head"><h3>Prescription queue</h3><span class="badge badge-slate" id="queueBadge">0 waiting</span></div>
+          <div class="panel-body" id="queueList"></div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-inventory">
+        <div class="panel">
+          <div class="panel-head"><h3>Medicine inventory</h3><input type="search" placeholder="Search inventory…" style="padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);font-size:.85rem;"></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>Medicine</th><th>Stock</th><th>Expiry</th><th>Status</th></tr></thead>
+            <tbody id="invTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-history">
+        <div class="panel">
+          <div class="panel-head"><h3>Dispensed history</h3></div>
+          <div class="panel-body" style="padding-top:0;">
+            <table><thead><tr><th>Time</th><th>Patient</th><th>Medicine</th><th>Qty</th></tr></thead>
+            <tbody id="historyTable"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view" id="panel-profile">
+        <div class="panel settings-panel">
+          <div class="settings-head">
+            <div class="settings-avatar" data-user-avatar>PH</div>
+            <h3 data-profile-name></h3>
+            <p data-profile-role>Pharmacist</p>
+          </div>
+          <div class="panel-body">
+            <div class="field"><label>Full name</label><input type="text" data-profile-name-input></div>
+            <div class="field"><label>Email</label><input type="email" data-profile-email-input></div>
+            <div class="field"><label>Counter</label><input type="text" placeholder="e.g. Counter 2"></div>
+            <div class="flex gap-12 mt-8">
+              <button type="button" class="btn btn-primary" data-profile-save>Save changes</button>
+              <button type="button" class="btn btn-ghost" data-profile-cancel>Cancel</button>
+            </div>
+            <div class="risk-row mt-24" style="border-top:1px solid var(--line);padding-top:18px;">
+              <div><strong style="display:block;font-size:.9rem;">Password</strong><span style="font-size:.78rem;color:var(--slate-400);">Keep your account secure with a strong password.</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="ccOpenChangePassword()">Change password</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>ccGuardDashboard('pharmacist').then(user => { if(user) window.ccLoadPharmacistDashboard(user); });</script>
+<script>
+Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = '#5b7370';
+new Chart(document.getElementById('stockChart'), {
+  type:'bar',
+  data:{ labels:['Insulin','Paracetamol','Amoxicillin','Metformin','Amlodipine','Atorvastatin'],
+    datasets:[{ label:'Units in stock', data:[180,640,410,520,88,340], backgroundColor:(ctx)=>ctx.raw<150?'#ff6f59':'#2fb8a4', borderRadius:6 }]},
+  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+});
+
+window.ccLoadPharmacistDashboard = async function(user){
+  /* prescription queue — derived from today's appointments (prescriptions
+     module not built yet; queue shows who is expected at the counter) */
+  try {
+    const queue = document.getElementById('queueList');
+    const appts = await ccApi('/api/appointments?page_size=100');
+    const badge = document.getElementById('queueBadge');
+    if(badge) badge.textContent = `${appts.length} waiting`;
+    if(!appts.length){
+      queue.innerHTML = '<div class="risk-row" style="padding:14px 0;"><span style="color:var(--slate-400);font-size:.85rem;">No prescriptions in the queue.</span></div>';
+    } else {
+      queue.innerHTML = appts.slice(0, 6).map(a => {
+        const urgent = a.status === 'Waiting';
+        return `<div class="risk-row" style="padding:14px 0;border-bottom:1px solid var(--cloud-100);">
+          <div><strong style="display:block;font-size:.9rem;">${ccEscape(a.patient_name)} — ${ccEscape(a.department)}</strong><span style="font-size:.78rem;color:var(--slate-400);">Prescribed by ${ccEscape(a.doctor_name)} · ${ccEscape(a.reason || 'Consultation')}</span></div>
+          <div class="flex items-center gap-12"><span class="badge ${urgent?'badge-coral':'badge-slate'}">${urgent?'Urgent':'Routine'}</span>
+          <button class="btn btn-sm btn-accent" onclick="ccToast('Prescriptions module coming soon')">Dispense</button></div></div>`;
+      }).join('');
+    }
+  } catch(err){
+    document.getElementById('queueList').innerHTML = `<div class="risk-row" style="padding:14px 0;color:#c9432c;font-size:.85rem;">${ccEscape(err.message)}</div>`;
+  }
+
+  /* inventory table — no inventory module yet, clearly marked */
+  ccRenderState(document.getElementById('invTable'), 'empty', 'Inventory module coming soon.', 4);
+
+  /* dispensed history — no pharmacy module yet, clearly marked */
+  ccRenderState(document.getElementById('historyTable'), 'empty', 'Dispensing history module coming soon.', 4);
+};
+</script>
+</body>
+</html>

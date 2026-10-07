@@ -1,0 +1,16 @@
+# Runtime dependencies — pinned exact versions.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+python-dotenv==1.0.1
+pyjwt==2.10.1
+argon2-cffi==23.1.0
+argon2-cffi-bindings==21.2.0
+slowapi==0.1.9
+tzdata==2024.2  # IANA tz database (Windows hosts ship none) for Asia/Kolkata
