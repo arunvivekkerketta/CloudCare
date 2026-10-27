@@ -32,6 +32,21 @@ netlify.toml      Netlify config (static site + security headers)
 - **Hardened** — rate-limited login/register (slowapi), generic login errors,
   security headers, no exception leakage, CORS allow-list, `/docs` disabled
   in production, liveness `/health` + readiness `/health/db`.
+- **Sessions you can keep** — 30-minute tokens by default, "Keep me signed in"
+  issues a 7-day token, and `POST /api/auth/refresh` silently renews a token
+  that is close to expiring without logging the tab out.
+- **Password reset by email** — `POST /api/auth/forgot-password` mails a
+  30-minute single-use signed link (`reset-password.html`) through SMTP.
+  With no `SMTP_HOST`, development logs the link at INFO and production
+  withholds it (WARNING) instead of pretending it was sent.
+- **In-app notifications** — bookings, confirmations, declines, leave and
+  expiry all write a `notifications` row; the bell in the patient and doctor
+  dashboards polls for them and toasts what is new. No email transport is
+  required for this part.
+- **Appointment lifecycle** — `Requested → Confirmed → Completed` (plus
+  `Declined`, `Cancelled`, `Expired`), with transitions validated server-side,
+  stale requests auto-expired on read, and one invoice generated per
+  completed visit.
 
 ## Local setup
 
@@ -91,9 +106,12 @@ All variables are documented in `cloudcare-api/.env.example`. Key ones:
 | `ENV` | `production` enables hard guards (real SECRET_KEY, Postgres, no docs) |
 | `SECRET_KEY` | JWT signing — required in production |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime (default 30) |
+| `REMEMBER_ME_EXPIRE_MINUTES` | "Keep me signed in" token lifetime (default 10080 = 7 days) |
 | `DATABASE_URL` | Single Postgres URL (`postgres://` normalized, `sslmode=require` supported) |
 | `DB_*` | Fallback when no `DATABASE_URL` is set |
 | `CORS_ORIGINS` | Comma-separated allow-list — never `*` |
+| `SMTP_HOST` · `SMTP_PORT` · `SMTP_USER` · `SMTP_PASSWORD` · `SMTP_FROM` | Password-reset email (STARTTLS). Unset = log only, never a silent failure |
+| `FRONTEND_URL` | Public frontend origin used inside emailed reset links |
 
 ## Deploy
 
@@ -110,9 +128,15 @@ All variables are documented in `cloudcare-api/.env.example`. Key ones:
 | `POST /api/auth/register` | public (always patient) |
 | `POST /api/auth/login` | public (rate-limited) |
 | `GET /api/auth/me` | any authenticated |
-| `POST /api/auth/change-password` | any authenticated |
-| `POST /api/auth/forgot-password` | public (placeholder — no email sent) |
+| `POST /api/auth/change-password` | any authenticated (rotates the token) |
+| `POST /api/auth/forgot-password` | public (rate-limited, always the same 200) |
+| `POST /api/auth/reset-password` | public (single-use signed token) |
+| `POST /api/auth/refresh` | any authenticated (renews the current token) |
+| `GET /api/notifications` · `POST /api/notifications/read` | any authenticated (own rows) |
+| `GET /api/appointments?scope=upcoming\|past\|all` | scoped per role, `X-Total-Count` header |
 | `GET /api/patients/me` · `PATCH /api/patients/me` | patient (self only) |
+| `GET /api/reviews` | public (paged, newest first) |
+| `GET /api/reviews/eligible-doctors` | patient (doctors they actually visited) |
 | `GET /api/patients` | doctor (assigned) · admin (all) |
 | `GET/POST/PATCH /api/appointments` | scoped per role |
 | `GET /api/bills` · `PATCH /api/bills/{id}` | patient (own) · staff (read) · admin (update) |

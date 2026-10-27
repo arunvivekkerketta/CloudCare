@@ -40,7 +40,7 @@ function ccCurrentReturnTarget(){
 
 function ccSafeNext(next){
   if(!next) return '';
-  if(!/^dashboard-[a-z]+\.html/.test(next) && !/^(index|about|reviews|login|register|404)\.html/.test(next)) return '';
+  if(!/^dashboard-[a-z]+\.html/.test(next) && !/^(index|about|reviews|login|register|reset-password|404)\.html/.test(next)) return '';
   return next;
 }
 
@@ -56,7 +56,35 @@ function ccClearSession(){
    session-expired redirect, just surface the error message. */
 const CC_NO_AUTH_REDIRECT = ['/api/auth/login', '/api/auth/register'];
 
+/* Single-flight silent refresh: when the stored token has < 5 minutes left
+   one refresh request is shared by every concurrent ccApi call. A failed
+   refresh is ignored here — the normal 401 flow then takes over. */
+const CC_NO_REFRESH = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
+let ccRefreshing = null;
+
+async function ccMaybeRefreshToken(path){
+  if(CC_NO_REFRESH.some(p => path.startsWith(p))) return;
+  const token = localStorage.getItem('cloudcare_token');
+  if(!token) return;
+  const exp = Number(localStorage.getItem('cloudcare_token_exp') || 0);
+  if(!exp || exp - Date.now() > 5 * 60 * 1000) return;
+
+  if(!ccRefreshing){
+    ccRefreshing = fetch(`${CC_API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    }).then(async (res) => {
+      if(!res.ok) return null;
+      const body = await res.json().catch(() => null);
+      if(body && body.access_token) ccSetToken(body.access_token, body.expires_in || 1800);
+      return body;
+    }).catch(() => null).finally(() => { ccRefreshing = null; });
+  }
+  await ccRefreshing;
+}
+
 async function ccApi(path, options = {}){
+  await ccMaybeRefreshToken(path);
   const token = localStorage.getItem('cloudcare_token');
   const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
   if(token) headers['Authorization'] = `Bearer ${token}`;
@@ -78,6 +106,10 @@ async function ccApi(path, options = {}){
       window.location.href = `login.html?expired=1${next ? `&next=${next}` : ''}`;
     }
     throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  if(response.status === 429){
+    throw new Error('Too many attempts. Please wait a minute and try again.');
   }
 
   if(response.status === 403){

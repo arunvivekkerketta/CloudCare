@@ -24,7 +24,8 @@ function ccHandleLogin(formSel){
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    await ccSubmitLogin(form, { email, password });
+    const remember = document.getElementById('loginRemember');
+    await ccSubmitLogin(form, { email, password, remember_me: !!(remember && remember.checked) });
   });
 }
 
@@ -116,6 +117,9 @@ async function ccSubmitRegister(form, payload){
   }
   if(params.get('expired') === '1'){
     setTimeout(() => ccToast('Your session has expired. Please sign in again.'), 0);
+  }
+  if(params.get('reset') === '1'){
+    setTimeout(() => ccToast('Password updated. Sign in with your new password.'), 0);
   }
 })();
 
@@ -356,7 +360,28 @@ function ccInitProfileForm(user){
     });
   }
 
-  saveBtn.addEventListener('click', async function(){
+  async function saveProfile(btn, payload){
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      const updated = await ccApi('/api/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      currentUser = updated;   /* gate S11: Cancel now restores THIS */
+      ccSetSession(updated);
+      ccRefreshUserIdentity(updated);
+      ccToast('Profile updated');
+    } catch(err){
+      ccToast(err.message || 'Could not update your profile.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
+  saveBtn.addEventListener('click', function(){
     const name = (nameInput?.value || '').trim();
     const email = (emailInput?.value || '').trim();
     if(name.length < 2){
@@ -369,25 +394,40 @@ function ccInitProfileForm(user){
       emailInput?.focus();
       return;
     }
-    const btn = this;
-    btn.disabled = true;
-    const original = btn.textContent;
-    btn.textContent = 'Saving…';
-    try {
-      const updated = await ccApi('/api/auth/me', {
-        method: 'PATCH',
-        body: JSON.stringify({ name, email }),
+    const payload = { name, email };
+    /* A new sign-in address needs the current password (server-enforced). */
+    if(email.toLowerCase() !== String(currentUser.email || '').toLowerCase()){
+      ccPromptEmailChangePassword(email, (password) => {
+        saveProfile(saveBtn, Object.assign({}, payload, { current_password: password }));
       });
-      currentUser = updated;   /* gate S11: Cancel now restores THIS */
-      ccSetSession(updated);
-      ccRefreshUserIdentity(updated);
-      ccToast('Profile updated');
-    } catch(err){
-      ccToast(err.message || 'Could not update your profile.');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = original;
+      return;
     }
+    saveProfile(saveBtn, payload);
+  });
+}
+
+/* Small password prompt used only when the email address is changing. */
+function ccPromptEmailChangePassword(newEmail, onConfirm){
+  ccModalOpen(`
+    <div class="cc-modal-head">
+      <div><h3>Confirm your password</h3><p>Changing your sign-in email needs your current password.</p></div>
+      <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <form id="emailPwForm">
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary">New email: <strong>${ccEscape(newEmail)}</strong></div>
+        <div class="field"><label for="emailPw">Current password</label><input id="emailPw" type="password" autocomplete="current-password" required></div>
+      </div>
+      <div class="cc-modal-foot">
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save email</button>
+      </div>
+    </form>`);
+  document.getElementById('emailPwForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const value = document.getElementById('emailPw').value;
+    ccModalClose();
+    onConfirm(value);
   });
 }
 

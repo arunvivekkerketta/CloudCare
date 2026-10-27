@@ -6,6 +6,7 @@
   'use strict';
 
   let ccOpsDoctorId = null;
+  const ccOpsDoctorFees = {};
 
   /* ================= doctors table + manage panel ================= */
 
@@ -20,6 +21,7 @@
       ]);
       const pubById = {};
       (pub || []).forEach((d) => { pubById[d.id] = d; });
+      users.forEach((u) => { ccOpsDoctorFees[u.id] = u.consultation_fee; });
 
       if (sel) {
         sel.innerHTML = '<option value="">Choose a doctor…</option>' +
@@ -89,6 +91,7 @@
 
   function renderDocManage(id, shifts, leaves) {
     const box = document.getElementById('docManageContent');
+    const fee = ccOpsDoctorFees[id] == null ? 500 : ccOpsDoctorFees[id];
     const morning = shifts.find((s) => s.name === 'Morning') || { start: '06:00', end: '14:00' };
     const evening = shifts.find((s) => s.name === 'Evening') || { start: '14:00', end: '22:00' };
     const leaveRows = leaves.length
@@ -112,6 +115,14 @@
           <button type="submit" class="btn btn-primary btn-sm mt-8">Save shifts</button>
           <p class="mb-0" style="font-size:.78rem;color:var(--slate-400);margin-top:12px;">Replaces both rules; times align to 15-minute boundaries and must overlap the 05:00–22:00 booking window.</p>
         </form>
+        <form id="opsFeeForm" class="mt-16">
+          <h4 style="margin-bottom:14px;">Consultation fee</h4>
+          <div class="field"><label for="opsFee">Fee per visit (INR)</label>
+            <input id="opsFee" type="number" min="0" max="1000000" step="1" value="${ccEscape(String(fee))}" required>
+            <span class="field-hint">Billed automatically when an appointment is completed.</span>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Save fee</button>
+        </form>
         <div>
           <h4 style="margin-bottom:14px;">Upcoming leaves</h4>
           <div id="opsLeaveList">${leaveRows}</div>
@@ -134,6 +145,7 @@
     document.getElementById('opsLeaveDate').min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 
     document.getElementById('opsShiftForm').addEventListener('submit', onShiftSubmit);
+    document.getElementById('opsFeeForm').addEventListener('submit', onFeeSubmit);
     document.getElementById('opsLeaveForm').addEventListener('submit', onLeaveSubmit);
     box.querySelectorAll('[data-del-leave]').forEach((btn) => {
       btn.addEventListener('click', () => onDeleteLeave(btn.dataset.delLeave, id));
@@ -165,6 +177,23 @@
     }
   }
 
+  async function onFeeSubmit(ev) {
+    ev.preventDefault();
+    if (!ccOpsDoctorId) return;
+    const value = Number(document.getElementById('opsFee').value);
+    try {
+      await ccApi(`/api/admin/users/${ccOpsDoctorId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ consultation_fee: value }),
+      });
+      ccOpsDoctorFees[ccOpsDoctorId] = value;
+      ccToast('Consultation fee saved.');
+      ccOpsLoadDoctors();
+    } catch (err) {
+      ccToast(err.message);
+    }
+  }
+
   async function onLeaveSubmit(ev) {
     ev.preventDefault();
     if (!ccOpsDoctorId) return;
@@ -173,12 +202,14 @@
       shift_name: document.getElementById('opsLeaveShift').value || null,
     };
     try {
-      await ccApi(`/api/admin/doctors/${ccOpsDoctorId}/leaves`, {
+      const created = await ccApi(`/api/admin/doctors/${ccOpsDoctorId}/leaves`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      ccToast('Leave added.');
+      const cancelled = (created && created[0] && created[0].cancelled_appointments) || 0;
+      ccToast(`Leave saved. ${cancelled} appointment(s) were cancelled and patients notified.`);
       loadDocManage(ccOpsDoctorId);
+      ccOpsLoadDoctors();
     } catch (err) {
       ccToast(err.message);
     }

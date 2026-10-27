@@ -43,7 +43,38 @@ git push origin main
    - `CORS_ORIGINS` — **edit this** to your Netlify URL from Part 2,
      e.g. `https://YOUR-SITE.netlify.app` (comma-separate extra origins if needed)
    - `DB_SSLMODE=require`
+   - (optional) password-reset email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+     `SMTP_PASSWORD`, `SMTP_FROM` and `FRONTEND_URL` (your Netlify URL).
+     Skip these and the API refuses to invent a reset link: it logs a warning
+     and still answers 200, so the `/forgot-password` form stays neutral.
+
+### Password reset email
+
+The `/api/auth/forgot-password` endpoint no longer sends email synchronously:
+the SMTP call is handed off to a background task so the HTTP response is fast
+and identical for registered and unregistered emails. For the reset link to
+actually arrive in production, set these environment variables on the API
+service: `SMTP_HOST`, `SMTP_PORT` (587 with STARTTLS), `SMTP_USER`,
+`SMTP_PASSWORD`, `SMTP_FROM` and `FRONTEND_URL` (the public frontend origin
+used in the link). With no `SMTP_HOST`, the reset link is only logged in
+development and deliberately withheld in production; the API still returns the
+neutral "if that email has an account" message either way.
 5. Save; the service redeploys automatically.
+
+### 3b. Proxy headers (real visitor IPs)
+
+The start command in `render.yaml` runs gunicorn's uvicorn worker with
+`--forwarded-allow-ips="*"`. That makes uvicorn trust Render's proxy and
+replace `request.client` with the real visitor address, so the per-IP rate
+limits cannot be dodged with a spoofed `X-Forwarded-For` header. Running the
+API with plain uvicorn instead? Use the same flags:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+```
+
+The local `start.bat` already passes them. Do not trust a raw
+`X-Forwarded-For` header in application code.
 
 ### 4. Verify the migration ran
 
@@ -54,6 +85,11 @@ git push origin main
    exits immediately with a configuration error, fix the env var it names
    (most often: `SECRET_KEY` left default — the blueprint generates one, so
    this only happens with manual env setup).
+4. The same pre-deploy command applies every migration, including
+   `004_fixes.py` (appointment `status_reason`/`meeting_url`, the doctor
+   `consultation_fee`, `bills.appointment_id` and the `notifications` table).
+   It runs on both SQLite (local) and PostgreSQL; run it by hand with
+   `alembic upgrade head` inside `cloudcare-api/` if you migrate yourself.
 
 ### 5. Create the first admin
 
@@ -137,8 +173,8 @@ Open two browser windows: a normal window and an incognito window.
 | 5 | Log in as admin (`dashboard-admin.html`) | Patients / Doctors / Appointments / Billing tables all show seeded rows |
 | 6 | Log in as doctor `aakash.verma@cloudcare.demo` / `Demo!Pass123` (role: Doctor) | "My patients" shows only Dr. Verma's patients |
 | 7 | From the doctor, open the browser console and run: <br>`fetch('<api>/api/admin/users',{headers:{Authorization:'Bearer '+localStorage.getItem('cloudcare_token')}}).then(r=>r.status)` | `403` |
-| 8 | Patient window → Billing → Pay now on a pending invoice | Modal opens; invoice exists (payment is still a placeholder UI) |
-| 9 | Change password from Profile → Change password | Toast "Password updated"; old password rejected on next login |
+| 8 | Patient window → Billing → Pay now on a pending invoice | "How to pay" modal with the clinic's payment instructions (no card form — edit `CC_PAYMENT_INSTRUCTIONS` in `config.js`) |
+| 9 | Change password from Profile → Change password | Toast "Password updated"; this tab stays signed in, other devices are signed out on their next call |
 | 10 | Wait 35 minutes, then click any dashboard action | Redirected to login with "session expired" toast |
 | 11 | Log in with a wrong password 7 times quickly | Toast shows a rate-limit / generic error (slowapi kicks in) |
 | 12 | `curl -s https://your-api.onrender.com/health/db` | `{"status":"ok","database":"connected"}` — never a stack trace |

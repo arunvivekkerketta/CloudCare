@@ -6,15 +6,16 @@
 - DELETE is author-only; admins moderate through the admin router.
 """
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit import record_audit
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Review, User, UserRole
+from app.models import Appointment, Patient, Review, User, UserRole
 from app.schemas import ReviewCreate, ReviewPage, ReviewResponse, ReviewSummary
 from app.utils import client_ip
 
@@ -40,6 +41,88 @@ def _base_query(db: Session):
         joinedload(Review.author),
         joinedload(Review.doctor),
     )
+
+
+def _reviewed_doctor_ids(db: Session, user: User) -> list:
+    """Doctor ids this patient has actually visited: Completed, or Confirmed
+    with a start time that has already passed."""
+    patient = db.query(Patient).filter(Patient.user_id == user.id).first()
+    if patient is None:
+        return []
+    now = datetime.now(timezone.utc)
+    rows = (
+        db.query(Appointment.doctor_id)
+        .filter(
+            Appointment.patient_id == patient.id,
+            or_(
+                Appointment.status == "Completed",
+                and_(
+                    Appointment.status == "Confirmed",
+                    Appointment.scheduled_at < now,
+                ),
+            ),
+        )
+        .distinct()
+        .all()
+    )
+    return [row[0] for row in rows]
+
+
+def _patient_can_review(db: Session, user: User, doctor_id) -> bool:
+    return doctor_id in _reviewed_doctor_ids(db, user)
+
+
+@router.get("/eligible-doctors")
+def eligible_doctors(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Doctors this patient may review (visited only). Declared before any
+    path-parameter route so /doctors/{id} cannot swallow it."""
+    if current_user.role != UserRole.patient:
+        raise HTTPException(status_code=403, detail="Patient role required.")
+
+    doctor_ids = _reviewed_doctor_ids(db, current_user)
+    if not doctor_ids:
+        return []
+    doctors = (
+        db.query(User)
+        .filter(User.id.in_(doctor_ids), User.role == UserRole.doctor)
+        .order_by(User.name)
+        .all()
+    )
+    return [
+        {
+            "doctor_id": str(d.id),
+            "name": d.name,
+            "department": d.department or "General",
+        }
+        for d in doctors
+    ]
+
+
+@router.get("", response_model=ReviewPage)
+def all_reviews(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(9, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """Public wall: every doctor's reviews, newest first."""
+    total = int(db.query(func.count(Review.id)).scalar() or 0)
+    rows = (
+        _base_query(db)
+        .order_by(Review.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return ReviewPage(
+        items=[_serialize(r) for r in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=(total + page_size - 1) // page_size,
+    ).model_dump()
 
 
 @router.get("/summary", response_model=list[ReviewSummary])
@@ -167,6 +250,14 @@ def upsert_review(
     doctor = db.get(User, doctor_uuid)
     if doctor is None or doctor.role != UserRole.doctor:
         raise HTTPException(status_code=404, detail="Doctor not found.")
+
+    # Only a patient who actually visited the doctor may review them — this
+    # applies to edits too, so a review cannot be planted without a visit.
+    if not _patient_can_review(db, current_user, doctor.id):
+        raise HTTPException(
+            status_code=403,
+            detail="You can review a doctor after you have visited them.",
+        )
 
     existing = (
         db.query(Review).filter(

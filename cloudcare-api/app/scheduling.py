@@ -140,6 +140,20 @@ def ensure_slot_in_shift(db: Session, doctor: User, start_c: datetime) -> str:
                         f"on this date."
                     ),
                 )
+            # Only the aligned 30-minute grid inside the shift is bookable:
+            # 10:10 is not a slot, even though it lies inside working hours.
+            minutes_from_start = (start_t.hour * 60 + start_t.minute) - (
+                shift_start.hour * 60 + shift_start.minute
+            )
+            if (
+                minutes_from_start % SLOT_MINUTES != 0
+                or start_c.second
+                or start_c.microsecond
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Please pick one of the listed time slots.",
+                )
             return name
 
     hours = ", ".join(

@@ -16,6 +16,11 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+cloudcare-api/cloudcare.db
+
+# ---- server logs ----
+.server-*.log
+*.server.log
 
 # ---- editors / OS ----
 .vscode/

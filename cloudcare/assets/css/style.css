@@ -574,6 +574,8 @@ html[data-theme="dark"] .cc-toast{ border:1px solid rgba(255,255,255,.28); }
 .stat-card h3{ font-size:1.7rem; margin-bottom:2px; font-family:var(--font-display); }
 .stat-label{ font-size:.8rem; color:var(--slate-400); }
 
+#apptTabs{ margin:20px 0 14px; }
+
 .panel{ background:var(--card-bg-solid); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden; }
 .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--cloud-100); gap:14px; }
 .panel-head h3{ font-size:1.05rem; margin:0; }

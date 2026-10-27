@@ -33,6 +33,9 @@ from app.routers import (
     bills,
     billing,
     doctors,
+    health_risk,
+    inventory,
+    notifications,
     patients,
     reviews,
 )
@@ -76,6 +79,8 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+    # The frontend reads these (pagination total, unread notification count).
+    expose_headers=["X-Total-Count", "X-Unread-Count"],
 )
 
 SECURITY_HEADERS = {
@@ -124,7 +129,10 @@ app.include_router(appointments.router)
 app.include_router(bills.router)
 app.include_router(billing.router)
 app.include_router(reviews.router)
+app.include_router(notifications.router)
 app.include_router(admin.router)
+app.include_router(health_risk.router)
+app.include_router(inventory.router)
 
 # Public specialties list (same module as admin, but a separate router so the
 # admin-guard dependency does not apply to the public read).

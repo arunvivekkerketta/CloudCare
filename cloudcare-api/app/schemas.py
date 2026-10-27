@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -12,21 +13,67 @@ StaffRole = Literal["doctor", "nurse", "pharmacist", "lab", "admin"]
 
 # The four appointment statuses from the spec. A new booking is always
 # "Requested"; doctors/admins Confirm or Decline; anyone involved can Cancel.
-AppointmentStatus = Literal["Requested", "Confirmed", "Declined", "Cancelled"]
+AppointmentStatus = Literal[
+    "Requested", "Confirmed", "Declined", "Cancelled", "Completed", "Expired"
+]
+
+_COMMON_PASSWORDS = {
+    "password",
+    "password1",
+    "12345678",
+    "123456789",
+    "qwerty123",
+    "iloveyou",
+    "admin123",
+    "welcome1",
+}
+PASSWORD_MESSAGE = "Password must be at least 8 characters and include a letter and a number."
+
+
+def _validate_password(value: str, email: str | None = None) -> str:
+    if len(value) < 8 or len(value) > 128:
+        raise ValueError(PASSWORD_MESSAGE)
+    if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+        raise ValueError(PASSWORD_MESSAGE)
+    if email and value.strip().lower() == email.strip().lower():
+        raise ValueError(PASSWORD_MESSAGE)
+    if value.strip().lower() in _COMMON_PASSWORDS:
+        raise ValueError(PASSWORD_MESSAGE)
+    return value
+
+
+def _validate_name(value: str) -> str:
+    stripped = value.strip()
+    if not (2 <= len(stripped) <= 100) or not re.search(r"[A-Za-z]", stripped):
+        raise ValueError("Name must be 2-100 characters and contain at least one letter.")
+    return stripped
 
 
 # --------------------------------------------------------------------- auth
 class RegisterRequest(BaseModel):
     """Public registration — ALWAYS creates a patient account."""
 
-    name: str = Field(min_length=2, max_length=255)
+    name: str = Field(min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        return _validate_name(value)
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, value: str, info) -> str:
+        email = info.data.get("email")
+        return _validate_password(value, str(email) if email else None)
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
+    # Opt in to the longer (7 day) session lifetime on this device.
+    remember_me: bool = False
     # Informational only: authentication uses email + password. The server's
     # role is authoritative and returned in the response; clients use it to
     # redirect (a wrong picker no longer blocks sign-in).
@@ -37,9 +84,24 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
+    @field_validator("new_password")
+    @classmethod
+    def _password(cls, value: str) -> str:
+        return _validate_password(value)
+
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=10)
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _password(cls, value: str) -> str:
+        return _validate_password(value)
 
 
 class TokenResponse(BaseModel):
@@ -59,43 +121,67 @@ class UserResponse(BaseModel):
 class ProfileUpdate(BaseModel):
     """Self-service profile fields (PATCH /api/auth/me) — every role."""
 
-    name: str | None = Field(default=None, min_length=2, max_length=255)
+    name: str | None = Field(default=None, min_length=2, max_length=100)
     email: EmailStr | None = None
+    # Required only when the email is being changed.
+    current_password: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _validate_name(value)
 
 
 class AdminUserCreate(BaseModel):
-    name: str = Field(min_length=2, max_length=255)
+    name: str = Field(min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     role: Role
     department: str | None = Field(default=None, max_length=100)
 
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        return _validate_name(value)
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, value: str, info) -> str:
+        email = info.data.get("email")
+        return _validate_password(value, str(email) if email else None)
+
 
 class AdminUserUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=2, max_length=255)
+    name: str | None = Field(default=None, min_length=2, max_length=100)
     department: str | None = Field(default=None, max_length=100)
     password: str | None = None
     # Admin can change roles (including promoting staff), but never their own
     # (guaranteed server-side in the router, not merely by omitting the field).
     role: Annotated[Role | None, Field(default=None)] = None
+    # Doctor's per-visit consultation fee (drives automatic bills).
+    consultation_fee: Decimal | None = Field(default=None, ge=0, le=1000000)
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _validate_name(value)
 
     @field_validator("password")
     @classmethod
     def _strong_password(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        import re  # noqa:PLC0415 — only needed when a password is supplied
-
-        if len(value) < 8 or len(value) > 128:
-            raise ValueError("String should have at least 8 characters")
-        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
-            raise ValueError("Password must contain letters and numbers.")
-        return value
+        return _validate_password(value)
 
 
 class AdminUserResponse(UserResponse):
     department: str | None = None
     created_at: datetime | None = None
+    consultation_fee: Decimal | None = None
 
 
 class AuditLogResponse(BaseModel):
@@ -161,6 +247,16 @@ class AppointmentUpdate(BaseModel):
     mode: Literal["In-person", "Telemedicine"] | None = None
     reason: str | None = Field(default=None, max_length=500)
     status: AppointmentStatus | None = None
+    meeting_url: str | None = Field(default=None, max_length=500)
+
+    @field_validator("meeting_url")
+    @classmethod
+    def _https_meeting_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not value.startswith("https://"):
+            raise ValueError("Meeting links must start with https://")
+        return value
 
 
 class AppointmentResponse(BaseModel):
@@ -175,6 +271,8 @@ class AppointmentResponse(BaseModel):
     mode: str
     status: str
     reason: str | None = None
+    status_reason: str | None = None
+    meeting_url: str | None = None
 
 
 class AppointmentPage(BaseModel):
@@ -285,6 +383,15 @@ class BillingDetailUpdate(BaseModel):
     payment_method: str | None = Field(default=None, min_length=2, max_length=50)
     currency: str | None = Field(default=None, min_length=3, max_length=8)
 
+    @field_validator("currency")
+    @classmethod
+    def _inr_only(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if value.strip().upper() != "INR":
+            raise ValueError("All invoices are in INR.")
+        return "INR"
+
 
 # --------------------------------------------------------------- specialties
 class SpecialtyCreate(BaseModel):
@@ -326,6 +433,8 @@ class AdminLeaveOut(BaseModel):
     doctor_id: str
     leave_date: date
     shift_name: str | None = None
+    # How many already-booked appointments this leave cancelled (create only).
+    cancelled_appointments: int = 0
 
 
 TokenResponse.model_rebuild()

@@ -1,13 +1,24 @@
-"""Authentication routes: register, login, me, change/forgot password."""
+"""Authentication routes: register, login, refresh, me, password reset."""
+import hashlib
 import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import jwt
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.audit import record_audit
 from app.config import get_settings
 from app.database import get_db
-from app.deps import create_access_token, get_current_user
+from app.deps import (
+    create_access_token,
+    decode_access_token,
+    get_current_user,
+    oauth2_scheme,
+)
+from app.mailer import send_email
 from app.models import BillingDetail, Patient, User, UserRole
 from app.ratelimit import limiter
 from app.schemas import (
@@ -16,6 +27,7 @@ from app.schemas import (
     LoginRequest,
     ProfileUpdate,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
@@ -151,16 +163,66 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     )
     db.commit()
 
+    remember = bool(payload.remember_me)
+    expire_minutes = (
+        settings.remember_me_expire_minutes
+        if remember
+        else settings.access_token_expire_minutes
+    )
     token = create_access_token(
         subject=str(user.id),
         role=user.role.value,
         token_version=user.token_version,
+        expire_minutes=expire_minutes,
+        remember=remember,
     )
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        expires_in=settings.access_token_expire_minutes * 60,
+        expires_in=expire_minutes * 60,
         user=serialize_user(user),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Issue a fresh token for the signed-in user, same kind (30m or 7 days).
+
+    An already-expired token never reaches this point: get_current_user
+    rejects it with 401 before the handler runs.
+    """
+    claims = decode_access_token(token)
+    remember = bool(claims.get("rm", False))
+    expire_minutes = (
+        settings.remember_me_expire_minutes
+        if remember
+        else settings.access_token_expire_minutes
+    )
+    new_token = create_access_token(
+        subject=str(current_user.id),
+        role=current_user.role.value,
+        token_version=current_user.token_version,
+        expire_minutes=expire_minutes,
+        remember=remember,
+    )
+    record_audit(
+        db,
+        action="token_refresh",
+        resource=f"user:{current_user.id}",
+        actor=current_user,
+        ip_address=client_ip(request),
+    )
+    db.commit()
+    return TokenResponse(
+        access_token=new_token,
+        token_type="bearer",
+        expires_in=expire_minutes * 60,
+        user=serialize_user(current_user),
     )
 
 
@@ -208,6 +270,15 @@ def update_me(
 
     new_email = data.get("email")
     if new_email and new_email.lower() != current_user.email:
+        # Changing the sign-in address needs the current password, so a
+        # stolen session cannot quietly move the account to another inbox.
+        if not verify_password(
+            data.get("current_password") or "", current_user.hashed_password
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Enter your current password to change your email.",
+            )
         existing = db.query(User).filter(User.email == new_email.lower()).first()
         if existing is not None:
             raise HTTPException(
@@ -215,6 +286,7 @@ def update_me(
                 detail="An account with this email already exists.",
             )
         current_user.email = new_email.lower()
+    data.pop("current_password", None)
 
     new_name = data.get("name")
     if new_name and new_name.strip():
@@ -253,6 +325,9 @@ def change_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
 
     current_user.hashed_password = hash_password(payload.new_password)
+    # Revoke every session issued before this moment, then hand this browser
+    # a fresh token so it stays signed in while all other devices are out.
+    current_user.token_version += 1
     record_audit(
         db,
         action="change_password",
@@ -261,17 +336,119 @@ def change_password(
         ip_address=client_ip(request),
     )
     db.commit()
-    return {"message": "Password updated successfully."}
+    db.refresh(current_user)
+    token = create_access_token(
+        subject=str(current_user.id),
+        role=current_user.role.value,
+        token_version=current_user.token_version,
+    )
+    return {
+        "message": "Password updated successfully.",
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": settings.access_token_expire_minutes * 60,
+    }
+
+
+NEUTRAL_RESET_MESSAGE = (
+    "If that email has an account, a reset link has been sent."
+)
+RESET_FAILED_MESSAGE = "This reset link is invalid or has expired."
+
+
+def _reset_fingerprint(hashed_password: str) -> str:
+    """Ties a reset link to the current password hash, so it works only once."""
+    return hashlib.sha256(hashed_password.encode()).hexdigest()[:16]
 
 
 @router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Placeholder — no mail transport is configured, so no email is sent.
+@_maybe_limit("5/hour")
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Email a 30-minute, single-use reset link.
 
-    Always returns 200 so the endpoint cannot be used to enumerate accounts.
-    The frontend labels this clearly as unavailable.
+    The response is identical whether or not the account exists, so this
+    endpoint cannot be used to enumerate registered emails.
     """
-    return {
-        "message": "Password reset by email is not available yet. "
-        "Please contact an administrator to reset your password."
-    }
+    email = payload.email.lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if user is None:
+        return {"message": NEUTRAL_RESET_MESSAGE}
+
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "sub": str(user.id),
+            "purpose": "reset",
+            "exp": now + timedelta(minutes=30),
+            "ph": _reset_fingerprint(user.hashed_password),
+        },
+        settings.secret_key,
+        algorithm=settings.algorithm,
+    )
+    link = f"{settings.frontend_url.rstrip('/')}/reset-password.html?token={token}"
+    background_tasks.add_task(
+        send_email,
+        user.email,
+        "Reset your CloudCare password",
+        (
+            "We received a request to reset your CloudCare password.\n\n"
+            f"Open this link within 30 minutes to choose a new one:\n{link}\n\n"
+            "If you did not ask for this, you can ignore this email."
+        ),
+    )
+    record_audit(
+        db,
+        action="password_reset_requested",
+        resource=f"user:{user.id}",
+        actor=user,
+        ip_address=client_ip(request),
+    )
+    db.commit()
+    return {"message": NEUTRAL_RESET_MESSAGE}
+
+
+@router.post("/reset-password")
+def reset_password(
+    payload: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Consume one reset token: single use, 30 minutes, current hash only."""
+    failed = HTTPException(status_code=400, detail=RESET_FAILED_MESSAGE)
+    try:
+        claims = jwt.decode(
+            payload.token,
+            settings.secret_key,
+            algorithms=[settings.algorithm],
+        )
+    except jwt.InvalidTokenError:
+        raise failed from None
+
+    if claims.get("purpose") != "reset":
+        raise failed
+    try:
+        user_id = uuid.UUID(str(claims.get("sub")))
+    except (ValueError, TypeError):
+        raise failed from None
+
+    user = db.get(User, user_id)
+    if user is None or claims.get("ph") != _reset_fingerprint(user.hashed_password):
+        raise failed
+
+    user.hashed_password = hash_password(payload.new_password)
+    # Every existing session dies with the old password.
+    user.token_version += 1
+    record_audit(
+        db,
+        action="password_reset_done",
+        resource=f"user:{user.id}",
+        actor=user,
+        ip_address=client_ip(request),
+    )
+    db.commit()
+    return {"message": "Password updated. Sign in with your new password."}

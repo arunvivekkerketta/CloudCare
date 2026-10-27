@@ -34,7 +34,7 @@
 
   <main class="dash-main">
     <div class="dash-topbar">
-      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Ward B · Morning shift, 7:00 AM – 3:00 PM</p></div>
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Ward coverage — shifts are managed by the clinic admin</p></div>
       <div class="flex items-center gap-12">
         <span class="badge badge-mint" id="nurseTodayBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>NR</div>
@@ -184,7 +184,7 @@ window.ccLoadNurseDashboard = async function(user){
     tbody.innerHTML = appts.slice(0, 8).map((a, i) => {
       const last = new Date(a.scheduled_at).toLocaleTimeString('en-IN', { hour:'numeric', minute:'2-digit' });
       const badgeClass = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : 'badge-slate';
-      return `<tr><td class="mono">Ward ${String(i + 1).padStart(2,'0')}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || a.department)}</td><td class="mono">${last}</td>
+      return `<tr><td class="mono" title="No bed assignment is stored yet">—</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.reason || a.department)}</td><td class="mono">${last}</td>
         <td><span class="badge ${badgeClass}">${ccEscape(a.status)}</span></td></tr>`;
     }).join('');
   } catch(err){ ccRenderState(document.getElementById('wardTable'), 'error', err.message, 5); }

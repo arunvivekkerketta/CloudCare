@@ -11,7 +11,9 @@ services:
       pip install -r requirements.txt
     # Pre-deploy gate: migrate before the new code serves traffic.
     preDeployCommand: "alembic upgrade head"
-    startCommand: "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:$PORT --timeout 60"
+    # --forwarded-allow-ips="*" lets uvicorn worker trust Render's proxy and
+    # rewrite request.client, so rate limits see the real visitor IP.
+    startCommand: "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:$PORT --timeout 60 --forwarded-allow-ips=\"*\""
     healthCheckPath: /health
     autoDeploy: true
     envVars:

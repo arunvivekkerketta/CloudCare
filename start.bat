@@ -16,7 +16,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo Starting API  -^>  http://127.0.0.1:8000  (migrations run first)...
-start "CloudCare API" cmd /k ".venv\Scripts\activate && alembic upgrade head && uvicorn app.main:app --reload"
+start "CloudCare API" cmd /k ".venv\Scripts\activate && alembic upgrade head && uvicorn app.main:app --reload --proxy-headers --forwarded-allow-ips=*"
 
 echo Starting web  -^>  http://127.0.0.1:5500 ...
 start "CloudCare Web" cmd /k ".venv\Scripts\python.exe -m http.server 5500 --directory ..\cloudcare"

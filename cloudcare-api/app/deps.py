@@ -22,27 +22,44 @@ CREDENTIALS_EXCEPTION = HTTPException(
 )
 
 
-def create_access_token(subject: str, role: str, token_version: int = 0) -> str:
+def create_access_token(
+    subject: str,
+    role: str,
+    token_version: int = 0,
+    expire_minutes: int | None = None,
+    remember: bool = False,
+) -> str:
     """Create a signed JWT access token for a user id + role.
 
     The `tv` claim mirrors users.token_version at issue time. Logging out
     bumps the stored version, which instantly invalidates every token with
     an older `tv` — server-side logout, not just client-side token deletion.
+    `rm` records whether this is a long-lived "keep me signed in" session,
+    so refresh can issue the same kind of token.
     """
     now = datetime.now(timezone.utc)
+    minutes = (
+        expire_minutes
+        if expire_minutes is not None
+        else settings.access_token_expire_minutes
+    )
     payload = {
         "sub": subject,
         "role": role,
         "tv": token_version,
+        "rm": remember,
         "iat": now,
-        "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
+        "exp": now + timedelta(minutes=minutes),
+        # Unique per issue, so a refresh never returns the identical string
+        # as the token it replaces even within the same second.
+        "jti": uuid.uuid4().hex,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 def decode_access_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,6 +68,10 @@ def decode_access_token(token: str) -> dict:
         ) from None
     except jwt.InvalidTokenError:
         raise CREDENTIALS_EXCEPTION from None
+    # Special-purpose tokens (e.g. password reset) are never login tokens.
+    if payload.get("purpose"):
+        raise CREDENTIALS_EXCEPTION
+    return payload
 
 
 def get_current_user(

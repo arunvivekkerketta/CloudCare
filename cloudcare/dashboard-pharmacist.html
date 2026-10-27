@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
 </head>
 <body>
@@ -35,7 +34,7 @@
 
   <main class="dash-main">
     <div class="dash-topbar">
-      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Central Pharmacy · Counter 2</p></div>
+      <div><h1 id="topbarTitle">Overview</h1><p class="sub">Pharmacy — counter coverage is managed by the admin</p></div>
       <div class="flex items-center gap-12">
         <span class="badge badge-mint" id="pharmBadge" hidden></span>
         <div class="avatar-sm" data-user-avatar>PH</div>
@@ -53,8 +52,8 @@
           <div class="stat-card"><h3>—</h3><span class="stat-label">Pending reorders</span><div><span class="badge badge-slate">Coming soon</span></div></div>
         </div>
         <div class="panel mt-24">
-          <div class="panel-head"><h3>Stock levels — top medicines</h3><span class="badge badge-slate">Sample data</span></div>
-          <div class="panel-body"><canvas id="stockChart" height="210"></canvas></div>
+          <div class="panel-head"><h3>Stock levels — top medicines</h3><span class="badge badge-slate">Not connected</span></div>
+          <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><div><strong style="font-size:.9rem;">Inventory module coming soon</strong><span style="display:block;font-size:.78rem;color:var(--slate-400);">Real stock levels will appear here once the pharmacy inventory is connected — no figures are shown until then.</span></div></div></div>
         </div>
       </section>
 
@@ -122,18 +121,6 @@
 <script src="assets/js/auth.js"></script>
 <script>ccGuardDashboard('pharmacist').then(user => { if(user) window.ccLoadPharmacistDashboard(user); });</script>
 <script>
-/* gate C6: chart isolated + guarded — a blocked CDN no-ops this block. */
-if(window.Chart){ try{
-  const pal = window.ccChartPalette ? window.ccChartPalette() : { text: '#5b7370' };
-  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = pal.text;
-  window.ccRegisterChart(new Chart(document.getElementById('stockChart'), {
-    type:'bar',
-    data:{ labels:['Insulin','Paracetamol','Amoxicillin','Metformin','Amlodipine','Atorvastatin'],
-      datasets:[{ label:'Units in stock', data:[180,640,410,520,88,340], backgroundColor:(ctx)=>ctx.raw<150?'#ff6f59':'#2fb8a4', borderRadius:6 }]},
-    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
-  }));
-}catch(e){} }
-
 window.ccLoadPharmacistDashboard = async function(user){
   /* prescription queue — derived from today's appointments (prescriptions
      module not built yet; queue shows who is expected at the counter) */

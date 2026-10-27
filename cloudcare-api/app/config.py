@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key-change-me"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    # "Keep me signed in" lifetime (7 days).
+    remember_me_expire_minutes: int = 10080
 
     # --- CORS --------------------------------------------------------------
     cors_origins: str = "http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000,http://127.0.0.1:3000"
@@ -37,13 +39,24 @@ class Settings(BaseSettings):
     # Rate limits (slowapi syntax). Empty string disables a limiter — used by
     # the test suite so hundreds of register/login calls don't trip the caps.
     rate_limit_login: str = "10/minute"
-    rate_limit_register: str = "5/hour"
+    rate_limit_register: str = "20/hour"
 
     # Connection pool — deliberate values, not silent SQLAlchemy defaults.
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800
+
+    # --- Email (password reset) -------------------------------------------
+    # With no SMTP_HOST the reset link is logged at INFO in development and
+    # withheld (WARNING) in production; the API never raises to the caller.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+    # Base URL used in emailed links (the static frontend).
+    frontend_url: str = "http://localhost:5500"
 
     @property
     def is_production(self) -> bool:

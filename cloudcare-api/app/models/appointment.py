@@ -34,6 +34,10 @@ class Appointment(Base):
     # A new booking is always "Requested"; the doctor (or an admin) then
     # Confirms or Declines it. Declined/Cancelled free the slot.
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="Requested")
+    # Why the status is what it is (e.g. "Doctor on leave", expiry reason).
+    status_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Real video link for Telemedicine appointments (doctor/admin only).
+    meeting_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     patient: Mapped["Patient"] = relationship(
         "Patient",

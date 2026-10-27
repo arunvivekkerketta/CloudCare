@@ -16,9 +16,14 @@ def serialize_user(user: User) -> dict:
 
 
 def client_ip(request) -> str | None:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """The real client address.
+
+    uvicorn's --proxy-headers flag (set in render.yaml / start.bat) rewrites
+    request.client from the trusted proxy chain, so this is already correct
+    behind Render. A raw X-Forwarded-For header sent by a client must never
+    be trusted — it would let anyone spoof another user's IP and dodge the
+    per-address rate limits.
+    """
     if request.client:
         return request.client.host
     return None

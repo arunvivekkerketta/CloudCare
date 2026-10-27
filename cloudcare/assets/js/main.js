@@ -185,7 +185,7 @@ function ccOpenChangePassword(){
     <form id="pwForm">
       <div class="cc-modal-body">
         <div class="field"><label for="pwCurrent">Current password</label><input id="pwCurrent" type="password" placeholder="••••••••" autocomplete="current-password" required></div>
-        <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="pwNew">New password</label><input id="pwNew" type="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" maxlength="128" pattern=".*(?=.*[A-Za-z])(?=.*\d).*" title="At least 8 characters, including a letter and a number." required><span class="field-hint">At least 8 characters, including a letter and a number.</span></div>
         <div class="field"><label for="pwConfirm">Confirm new password</label><input id="pwConfirm" type="password" placeholder="Re-enter new password" autocomplete="new-password" required></div>
         <div class="cc-modal-note">🔒 Passwords are hashed with Argon2id on the server.</div>
       </div>
@@ -213,13 +213,18 @@ function ccOpenChangePassword(){
     btn.disabled = true;
     btn.textContent = 'Updating…';
     try {
-      await ccApi('/api/auth/change-password', {
+      const res = await ccApi('/api/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({
           current_password: document.getElementById('pwCurrent').value,
           new_password: newInput.value,
         }),
       });
+      /* The server revoked every old session; keep THIS browser signed in
+         with the replacement token it returned. */
+      if(res && res.access_token){
+        ccSetToken(res.access_token, res.expires_in || 1800);
+      }
       ccModalClose();
       ccToast('Password updated');
     } catch(err){
@@ -230,31 +235,41 @@ function ccOpenChangePassword(){
   });
 }
 
-/* ---------- forgot password (login page) — gate S9 ----------
-   No fake email flow: the form is honest about what the product can do
-   today, and submit is a real preventDefault'ed form submission. */
+/* ---------- forgot password (login page) ----------
+   Sends a real, single-use reset link. The response is deliberately neutral
+   so the form cannot be used to discover which emails have accounts. */
 function ccOpenForgotPassword(){
   ccModalOpen(`
     <div class="cc-modal-head">
-      <div><h3>Reset your password</h3><p>Email reset isn't wired up yet — here's what to do instead.</p></div>
+      <div><h3>Reset your password</h3><p>We'll email you a link to choose a new one.</p></div>
       <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
     </div>
     <form id="forgotForm">
       <div class="cc-modal-body">
-        <div class="cc-modal-summary">Contact an administrator and they can reset your password from the admin console.</div>
-        <div class="cc-modal-note">📩 There is no automated email reset in this build, so we won't ask for an email address we can't use.</div>
+        <div class="field"><label for="forgotEmail">Email</label><input id="forgotEmail" type="email" placeholder="you@cloudcare.demo" autocomplete="email" required></div>
+        <div class="cc-modal-note">📩 The link expires after 30 minutes and can be used once.</div>
       </div>
       <div class="cc-modal-foot">
-        <button type="button" class="btn btn-ghost" data-modal-close>Close</button>
-        <button type="submit" class="btn btn-primary">Got it</button>
+        <button type="button" class="btn btn-ghost" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send reset link</button>
       </div>
     </form>
   `);
 
-  document.getElementById('forgotForm').addEventListener('submit', (ev) => {
+  document.getElementById('forgotForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    ccModalClose();
-    ccToast('Password reset by email is not available yet. Please contact an administrator.');
+    const email = document.getElementById('forgotEmail').value.trim();
+    try {
+      const res = await ccApi('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+        noRedirect: true,
+      });
+      ccModalClose();
+      ccToast(res.message || 'If that email has an account, a reset link has been sent.');
+    } catch(err){
+      ccToast(err.message || 'Could not send the reset link.');
+    }
   });
 }
 
@@ -433,6 +448,15 @@ window.ccScrollBehavior = ccScrollBehavior;
   document.querySelectorAll('[data-year]').forEach(el => { el.textContent = year; });
 })();
 
+/* ---------- gate S4: "a button is mid-click" window ----------
+   Any .btn click opens a short busy window that background polls respect,
+   so a refresh can never swap rows underneath a confirm/decline/save. */
+document.addEventListener('click', (e) => {
+  if(e.target && e.target.closest && e.target.closest('.btn')){
+    window.__ccBtnBusyUntil = Date.now() + 1500;
+  }
+}, true);
+
 /* ---------- gate S5: client-side table filters ----------
    Any <input data-filter-target="#tbodyId"> filters that tbody's rows by
    text content — no server round-trip, keeps the current sort/state. */
@@ -485,12 +509,16 @@ window.ccApplyChartTheme = function(){
         if(scales){
           Object.keys(scales).forEach(key => {
             const sc = scales[key] || {};
-            if(sc.ticks) sc.ticks.color = p.text;
-            if(sc.grid && sc.grid.color !== undefined) sc.grid.color = p.grid;
+            sc.ticks = sc.ticks || {};   // create when the chart never defined them
+            sc.ticks.color = p.text;
+            if(sc.grid !== false){
+              sc.grid = sc.grid || {};
+              sc.grid.color = p.grid;
+            }
           });
         }
         const legend = chart.options && chart.options.plugins && chart.options.plugins.legend;
-        if(legend && legend.labels && legend.labels.color !== undefined) legend.labels.color = p.text;
+        if(legend && legend.labels) legend.labels.color = p.text;
         chart.update('none');
       } catch(e){ /* one broken chart must not break the rest */ }
     });

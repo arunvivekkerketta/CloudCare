@@ -57,8 +57,8 @@
       </div>
       <div class="field">
         <label for="regPassword">Password</label>
-        <input id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password" minlength="8" required>
-        <span class="field-hint">Use at least 8 characters — letters and numbers recommended.</span>
+        <input id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password" minlength="8" maxlength="128" pattern=".*(?=.*[A-Za-z])(?=.*\d).*" title="At least 8 characters, including a letter and a number." required>
+        <span class="field-hint">At least 8 characters, including a letter and a number.</span>
       </div>
       <div class="field">
         <label for="regConfirmPassword">Confirm password</label>

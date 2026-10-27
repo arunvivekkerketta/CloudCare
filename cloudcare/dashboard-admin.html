@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   .panel-view{display:none;} .panel-view.active{display:block;}
   .ai-agent-tabs{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
@@ -92,12 +91,12 @@
 
         <div class="grid grid-2 mt-24">
           <div class="panel reveal in">
-            <div class="panel-head"><h3>Patient admissions — last 8 weeks</h3><span class="badge badge-slate">Sample data</span></div>
-            <div class="panel-body"><canvas id="admissionsChart" height="200"></canvas></div>
+            <div class="panel-head"><h3>Patient admissions</h3><span class="badge badge-slate">Not connected</span></div>
+            <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">Admissions are not tracked separately yet — no chart is shown until real data exists.</span></div></div>
           </div>
           <div class="panel reveal in">
-            <div class="panel-head"><h3>Department load</h3><span class="badge badge-slate">Sample data</span></div>
-            <div class="panel-body"><canvas id="deptChart" height="200"></canvas></div>
+            <div class="panel-head"><h3>Department load</h3><span class="badge badge-slate">Not connected</span></div>
+            <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">Department load will appear once the clinical module is connected.</span></div></div>
           </div>
         </div>
 
@@ -244,6 +243,8 @@
               <option value="Confirmed">Confirmed</option>
               <option value="Declined">Declined</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="Completed">Completed</option>
+              <option value="Expired">Expired</option>
             </select>
           </div>
           <div class="panel-body" style="padding-top:0;">
@@ -335,8 +336,8 @@
         <div class="agent-view active" data-agent-view="inventory">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-slate">Sample data</span></div>
-              <div class="panel-body"><canvas id="inventoryChart" height="220"></canvas></div>
+              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-slate">Not connected</span></div>
+              <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">No forecast is invented — it appears here once the inventory agent has data.</span></div></div>
             </div>
             <div class="panel">
               <div class="panel-head"><h3>Auto-drafted reorders</h3></div>
@@ -348,8 +349,8 @@
         <div class="agent-view" data-agent-view="risk" style="display:none;">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>Risk distribution</h3><span class="badge badge-slate">Sample data</span></div>
-              <div class="panel-body"><canvas id="riskChart" height="220"></canvas></div>
+              <div class="panel-head"><h3>Risk distribution</h3><span class="badge badge-slate">Not connected</span></div>
+              <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">No risk distribution is invented — it appears here once the risk agent has data.</span></div></div>
             </div>
             <div class="panel">
               <div class="panel-head"><h3>Flagged patients this week</h3></div>
@@ -361,8 +362,8 @@
         <div class="agent-view" data-agent-view="resource" style="display:none;">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>14-day bed &amp; ICU forecast</h3><span class="badge badge-slate">Sample data</span></div>
-              <div class="panel-body"><canvas id="resourceChart" height="220"></canvas></div>
+              <div class="panel-head"><h3>14-day bed &amp; ICU forecast</h3><span class="badge badge-slate">Not connected</span></div>
+              <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">No capacity numbers are invented — they appear here once the forecasting module has data.</span></div></div>
             </div>
             <div class="panel">
               <div class="panel-head"><h3>Staffing recommendations</h3></div>
@@ -375,8 +376,8 @@
       <!-- ===== REPORTS ===== -->
       <section class="panel-view" id="panel-reports">
         <div class="panel reveal in">
-          <div class="panel-head"><h3>Monthly performance report</h3><span class="badge badge-slate">Sample data</span><button class="btn btn-ghost btn-sm" onclick="ccToast('Report exported (demo)')">Export PDF</button></div>
-          <div class="panel-body"><canvas id="reportChart" height="220"></canvas></div>
+          <div class="panel-head"><h3>Monthly performance report</h3><span class="badge badge-slate">Not connected</span></div>
+          <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">Revenue and expense reporting is not connected yet — no figures are shown until it is.</span></div></div>
         </div>
       </section>
 

@@ -8,8 +8,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B5%3C/text%3E%3C/svg%3E">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<style>.panel-view{display:none;} .panel-view.active{display:block;}</style>
+<style>[hidden]{display:none !important;} .panel-view{display:none;} .panel-view.active{display:block;}
+.cc-notify{position:relative;}
+.cc-notify-trigger{position:relative;font-size:1.05rem;line-height:1;}
+.cc-notify-count{position:absolute;top:-5px;right:-8px;background:#c9432c;color:#fff;border-radius:999px;font-size:.62rem;font-weight:800;padding:1px 5px;min-width:16px;text-align:center;}
+.cc-notify-dropdown{width:330px;max-height:420px;overflow:auto;}
+.cc-notify-item{padding:10px 12px;border-radius:10px;font-size:.82rem;color:var(--slate-600,#475b58);}
+.cc-notify-item.unread{background:var(--cloud-100);font-weight:600;}
+.cc-notify-item span{display:block;font-size:.72rem;color:var(--slate-400);font-weight:500;margin-top:4px;}
+.cc-notify-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 10px;border-bottom:1px solid var(--cloud-100);margin-bottom:8px;}</style>
 </head>
 <body>
 
@@ -42,6 +49,13 @@
       <div><h1 id="topbarTitle">Overview</h1><p class="sub">Welcome back — here's your health at a glance</p></div>
       <div class="flex items-center gap-12">
         <span class="badge badge-mint" id="visitBadge" hidden></span>
+        <div class="cc-account-menu cc-notify" id="ccNotify">
+          <button class="btn btn-ghost btn-sm cc-notify-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">🔔<span class="cc-notify-count" id="ccNotifyCount" hidden>0</span></button>
+          <div class="cc-account-dropdown cc-notify-dropdown">
+            <div class="cc-notify-head"><strong style="font-size:.9rem;">Notifications</strong><button type="button" class="btn btn-ghost btn-sm" id="ccNotifyReadAll">Mark all read</button></div>
+            <div id="ccNotifyList"><div class="cc-notify-item">Loading…</div></div>
+          </div>
+        </div>
         <div class="avatar-sm" data-user-avatar>PT</div>
       </div>
     </div>
@@ -53,8 +67,8 @@
           <!-- gate C5: every number below is either API-derived (filled in by
                ccLoadPatientDashboard) or an honest "—" with a tag. -->
           <div class="stat-card"><h3 id="statUpcoming">—</h3><span class="stat-label">Upcoming appointments</span></div>
-          <div class="stat-card"><h3>—</h3><span class="stat-label">Active prescriptions</span><div><span class="badge badge-slate">Coming soon</span></div></div>
-          <div class="stat-card"><h3 id="statRisk">—</h3><span class="stat-label">Health risk score</span></div>
+          <div class="stat-card"><h3 id="statNextVisit">—</h3><span class="stat-label">Next visit</span></div>
+          <div class="stat-card"><h3 id="statPastVisits">—</h3><span class="stat-label">Past visits</span></div>
           <div class="stat-card"><h3 id="statBalance">—</h3><span class="stat-label">Outstanding balance</span></div>
         </div>
 
@@ -62,10 +76,6 @@
           <div class="panel">
             <div class="panel-head"><h3>Upcoming appointment</h3></div>
             <div class="panel-body" id="upcomingApptCard" style="color:var(--slate-400);text-align:center;padding:18px 0;font-size:.85rem;">Loading your next appointment…</div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>HbA1c trend</h3><span class="badge badge-slate">Sample data</span></div>
-            <div class="panel-body"><canvas id="vitalsChart" height="200"></canvas></div>
           </div>
         </div>
       </section>
@@ -116,12 +126,17 @@
         <div class="panel">
           <div class="panel-head"><h3>My appointments</h3><span class="badge badge-slate">Requested → Confirmed · Cancel anytime</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="flex gap-12 mb-16" id="apptTabs">
+              <button type="button" class="btn btn-sm btn-primary" data-appt-scope="upcoming">Upcoming</button>
+              <button type="button" class="btn btn-sm btn-ghost" data-appt-scope="past">Past</button>
+            </div>
             <div class="table-scroll">
             <table>
               <thead><tr><th>When</th><th>Doctor</th><th>Department</th><th>Mode</th><th>Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
               <tbody id="myApptTable"></tbody>
             </table>
             </div>
+            <div class="mt-16"><button type="button" class="btn btn-ghost btn-sm" id="apptLoadMore" style="display:none;">Load more</button></div>
           </div>
         </div>
       </section>
@@ -141,55 +156,21 @@
       </section>
 
       <section class="panel-view" id="panel-telemedicine">
-        <div class="panel" id="teleEmptyState" style="max-width:560px;margin:0 auto;text-align:center;padding:50px 30px;">
-          <div class="card-icon" style="margin:0 auto 18px;">🎥</div>
-          <h3>No telemedicine call scheduled</h3>
-          <p>Your next video consultation will appear here once a doctor confirms it.</p>
-          <button class="btn btn-primary" onclick="openTelemedicineModal()">Request a video consult</button>
-        </div>
-
-        <div class="panel" id="teleScheduledState" style="max-width:560px;margin:0 auto;padding:30px;display:none;">
-          <div class="flex items-center gap-12">
-            <div class="avatar" style="width:52px;height:52px;font-size:1.15rem;">🎥</div>
-            <div>
-              <strong style="display:block;">Video consult with <span data-tele-doctor>Dr. Aakash Verma</span></strong>
-              <span style="font-size:.85rem;color:var(--slate-500);" data-tele-when>Scheduled</span>
-            </div>
-          </div>
-          <p class="mt-16 mb-0" style="font-size:.85rem;" data-tele-reason>Reason: —</p>
-          <div class="flex gap-12 mt-24">
-            <button class="btn btn-accent" onclick="ccToast('Call not yet active — join 5 minutes before your slot (demo)')">Join call</button>
-            <button class="btn btn-ghost" onclick="cancelTelemedicine()">Cancel</button>
+        <div id="telePanel" style="display:grid;gap:18px;">
+          <div class="panel" style="text-align:center;padding:40px 24px;">
+            <div class="card-icon" style="margin:0 auto 14px;">🎥</div>
+            <h3>Loading your video consultations…</h3>
           </div>
         </div>
       </section>
 
       <section class="panel-view" id="panel-risk">
-        <div class="grid grid-2">
-          <div class="ai-card coral">
-            <span class="ai-tag">AI Health Risk</span>
-            <!-- gate C5: no invented "68% — Elevated"; the score is written by
-                 ccLoadPatientDashboard from /api/patients/me, or stays "—". -->
-            <h3 style="font-size:2rem;" id="riskScoreHeading">—</h3>
-            <p>Your score is recalculated by the AI risk agent from your own records after every visit.</p>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>What's driving your score</h3><span class="badge badge-slate">Sample data</span></div>
-            <div class="panel-body" style="padding-top:8px;">
-              <div class="risk-row"><span>HbA1c trend</span><span class="badge badge-coral">High impact</span></div>
-              <div class="risk-row"><span>Blood pressure</span><span class="badge badge-gold">Medium impact</span></div>
-              <div class="risk-row"><span>Physical activity</span><span class="badge badge-mint">Low impact</span></div>
-              <div class="risk-row"><span>Family history</span><span class="badge badge-gold">Medium impact</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="panel mt-24">
-          <div class="panel-head"><h3>Personalized recommendations</h3><span class="badge badge-slate">Sample data</span></div>
-          <div class="panel-body grid grid-3">
-            <div class="card" style="padding:18px;"><strong>🥗 Diet</strong><p class="mt-8 mb-0" style="font-size:.85rem;">Reduce refined carbs; favour high-fibre meals.</p></div>
-            <div class="card" style="padding:18px;"><strong>🏃 Activity</strong><p class="mt-8 mb-0" style="font-size:.85rem;">Add 20 minutes of brisk walking, 5 days a week.</p></div>
-            <div class="card" style="padding:18px;"><strong>🩺 Follow-up</strong><p class="mt-8 mb-0" style="font-size:.85rem;">Repeat HbA1c test in 6 weeks.</p></div>
-          </div>
+        <div class="ai-card coral">
+          <span class="ai-tag">AI Health Risk</span>
+          <!-- gate C5: no invented "68% — Elevated"; the score is written by
+               ccLoadPatientDashboard from /api/patients/me, or stays "—". -->
+          <h3 style="font-size:2rem;" id="riskScoreHeading">—</h3>
+          <p>Your score is recalculated by the AI risk agent from your own records after every visit.</p>
         </div>
       </section>
 
@@ -220,12 +201,10 @@
                 </div>
                 <div class="field">
                   <label for="billCurrency">Currency</label>
-                  <select id="billCurrency">
+                  <select id="billCurrency" disabled>
                     <option value="INR">INR (₹)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
                   </select>
+                  <span class="field-hint">All invoices are in INR.</span>
                 </div>
               </div>
               <div class="flex gap-12 mt-8">
@@ -282,6 +261,7 @@
 <script src="assets/js/api.js"></script>
 <script src="assets/js/main.js"></script>
 <script src="assets/js/auth.js"></script>
+<script src="assets/js/notifications.js"></script>
 <script>ccGuardDashboard('patient').then(user => {
   if(!user) return;
   window.ccLoadPatientDashboard(user);
@@ -289,26 +269,15 @@
   window.ccRefreshVisitBadge();
   window.ccMyAppointmentsLoad();
   window.ccInitBillingDetails && window.ccInitBillingDetails();
-  /* visit badge stays current: recompute every 60s and on returning to the tab */
-  setInterval(() => window.ccRefreshVisitBadge && window.ccRefreshVisitBadge(), 60000);
+  /* the badge, table and upcoming card stay current: a real refetch every
+     60s and on returning to the tab — never the cached promise. */
+  setInterval(() => {
+    if(!document.hidden && window.ccPollAppointments) window.ccPollAppointments();
+  }, 60000);
   document.addEventListener('visibilitychange', () => {
-    if(!document.hidden && window.ccRefreshVisitBadge) window.ccRefreshVisitBadge();
+    if(!document.hidden && window.ccPollAppointments) window.ccPollAppointments();
   });
 });</script>
-<script>
-/* ============ gate C6: Chart.js in its OWN script block ============
-   If the CDN is blocked, `window.Chart` is undefined and this block no-ops.
-   Booking, tables and API logic live in the next block, so they survive. */
-if(window.Chart){ try{
-  const pal = window.ccChartPalette ? window.ccChartPalette() : { text: '#5b7370' };
-  Chart.defaults.font.family = "'Manrope', sans-serif"; Chart.defaults.color = pal.text;
-  window.ccRegisterChart(new Chart(document.getElementById('vitalsChart'), {
-    type:'line',
-    data:{ labels:['Jan','Mar','May','Jul','Aug'], datasets:[{ label:'HbA1c %', data:[6.9,7.1,7.3,7.6,7.8], borderColor:'#ff6f59', backgroundColor:'rgba(255,111,89,.1)', fill:true, tension:.4 }]},
-    options:{ plugins:{legend:{display:false}}, scales:{y:{suggestedMin:6,suggestedMax:9}}}
-  }));
-}catch(e){ /* chart is cosmetic — never break the page over it */ } }
-</script>
 <script>
 /* ================= Booking (gates 1b/3/4/5/6) =================
    Specialty -> doctor -> date -> free slots (30-min, IST clinic rules served
@@ -338,22 +307,13 @@ window.ccInitPatientBooking = function(user){
   panelFromHash();
   window.addEventListener('hashchange', panelFromHash);
 
-  /* specialties from the API (admin-managed) */
-  ccApi('/api/specialties').then(list => {
-    if(!list.length){
-      specialtySel.innerHTML = '<option value="">General consultation</option>';
-      return;
-    }
-    specialtySel.innerHTML = ['<option value="">Select a specialty…</option>']
-      .concat(list.map(s => `<option value="${ccEscape(s.name)}">${ccEscape(s.name)}</option>`))
-      .join('');
-  }).catch(() => { specialtySel.innerHTML = '<option value="">General consultation</option>'; });
-
-  specialtySel.addEventListener('change', () => {
+  /* Doctors load independently of the specialty list: with no specialties
+     configured the form must still be usable. */
+  function loadDoctors(){
     const target = specialtySel.value;
     doctorSel.innerHTML = '<option value="">Loading doctors…</option>';
     metaBox.style.display = 'none';
-    ccApi('/api/doctors').then(list => {
+    return ccApi('/api/doctors').then(list => {
       doctors = target
         ? list.filter(d => d.department === target)
         : list;
@@ -366,6 +326,70 @@ window.ccInitPatientBooking = function(user){
         .concat(doctors.map(d => `<option value="${d.id}">${ccEscape(d.name)} — ${ccEscape(d.department)}${d.average_rating ? ` · ★ ${d.average_rating}` : ''}</option>`))
         .join('');
     }).catch(() => { ccToast('Could not load doctors.'); });
+  }
+
+  /* Draft saving: an accidental refresh must not lose a half-filled form. */
+  const DRAFT_KEY = 'cc_booking_draft';
+  const modeInput = document.getElementById('bookMode');
+  const reasonInput = document.getElementById('bookReason');
+
+  function saveDraft(){
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        specialty: specialtySel.value,
+        doctor: doctorSel.value,
+        date: dateInput.value,
+        mode: modeInput ? modeInput.value : '',
+        reason: reasonInput ? reasonInput.value : '',
+      }));
+    } catch(e){ /* private mode / quota: drafts are a convenience only */ }
+  }
+  function clearDraft(){
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch(e){}
+  }
+  [specialtySel, doctorSel, dateInput, modeInput, reasonInput].forEach(el => {
+    if(!el) return;
+    el.addEventListener('input', saveDraft);
+    el.addEventListener('change', saveDraft);
+  });
+
+  function applyDraft(){
+    let draft = null;
+    try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch(e){ draft = null; }
+    if(!draft) return;
+    if(draft.doctor) doctorSel.value = draft.doctor;
+    if(draft.date) dateInput.value = draft.date;
+    if(draft.mode && modeInput) modeInput.value = draft.mode;
+    if(draft.reason && reasonInput) reasonInput.value = draft.reason;
+    if(draft.doctor && draft.date) loadSlots();
+  }
+
+  /* specialties from the API (admin-managed) */
+  function onSpecialtiesLoaded(list){
+    if(!list.length){
+      specialtySel.innerHTML = '<option value="">General consultation</option>';
+      const wrapper = specialtySel.closest('.field');
+      if(wrapper) wrapper.style.display = 'none';
+    } else {
+      specialtySel.innerHTML = ['<option value="">Select a specialty…</option>']
+        .concat(list.map(s => `<option value="${ccEscape(s.name)}">${ccEscape(s.name)}</option>`))
+        .join('');
+    }
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
+      if(draft && draft.specialty) specialtySel.value = draft.specialty;
+    } catch(e){}
+    loadDoctors().then(applyDraft);
+  }
+
+  ccApi('/api/specialties').then(onSpecialtiesLoaded).catch(() => {
+    specialtySel.innerHTML = '<option value="">General consultation</option>';
+    loadDoctors().then(applyDraft);
+  });
+
+  specialtySel.addEventListener('change', () => {
+    loadDoctors();
+    showChecking();
   });
 
   doctorSel.addEventListener('change', () => {
@@ -491,6 +515,7 @@ window.ccInitPatientBooking = function(user){
       });
       /* gate C14: clean, minimal reset — reason cleared, doctor meta hidden,
          selection released; doctor/date stay so the patient can book again. */
+      clearDraft();
       document.getElementById('bookReason').value = '';
       metaBox.style.display = 'none';
       selectedSlot = null;
@@ -587,10 +612,44 @@ let ccApptPromise = null;
 window.ccInvalidateAppointments = function(){ ccApptPromise = null; };
 window.ccPatientAppointments = function(){
   if(!ccApptPromise){
-    ccApptPromise = ccApi('/api/appointments?page_size=100')
+    ccApptPromise = ccApi('/api/appointments?scope=upcoming&page_size=100')
       .catch(err => { ccApptPromise = null; throw err; });
   }
   return ccApptPromise;
+};
+
+/* id -> status from the last poll, so a background refresh can tell the
+   patient when their doctor confirmed or declined. */
+window.ccLastStatuses = {};
+window.ccMyApptsById = {};
+function ccRecordStatuses(appts){
+  const next = {};
+  (appts || []).forEach(a => { next[a.id] = a.status; });
+  window.ccLastStatuses = next;
+}
+
+/* Poll: drop the cache so every consumer really hits the API, then refresh
+   the badge, the table and the upcoming card together. */
+window.ccPollAppointments = async function(){
+  if(document.hidden) return;
+  const previous = window.ccLastStatuses || {};
+  const hadPrevious = Object.keys(previous).length > 0;
+  window.ccInvalidateAppointments();          // drop the cache -> next call hits the API
+  await Promise.allSettled([
+    window.ccRefreshVisitBadge && window.ccRefreshVisitBadge(),
+    window.ccMyAppointmentsLoad && window.ccMyAppointmentsLoad(),
+    window.ccRefreshUpcomingCard && window.ccRefreshUpcomingCard()
+  ]);
+  try {
+    const appts = await window.ccPatientAppointments();
+    appts.forEach(a => {
+      const old = previous[a.id];
+      if(hadPrevious && old && old !== a.status){
+        ccToast(`Your appointment with ${a.doctor_name} is now ${a.status}`);
+      }
+    });
+    ccRecordStatuses(appts);
+  } catch(err){ /* the table shows its own error state */ }
 };
 /* gate C4: "upcoming" = earliest FUTURE Requested/Confirmed appointment.
    Past and Cancelled/Declined rows can never win this filter. */
@@ -641,52 +700,181 @@ window.ccRefreshVisitBadge = async function(){
   }
 };
 
-/* ================= My appointments panel (gates 8a/9) ================= */
+/* ================= My appointments panel (gates 8a/9) =================
+   Two API-backed tabs: Upcoming (active + future) and Past (everything
+   else, newest first, 20 at a time with Load more). */
+let ccApptScope = 'upcoming';
+let ccPastPage = 1;
+let ccPastItems = [];
+
+function ccApptBadgeClass(status){
+  if(status === 'Confirmed' || status === 'Completed') return 'badge-mint';
+  if(status === 'Requested') return 'badge-gold';
+  if(status === 'Cancelled' || status === 'Expired') return 'badge-slate';
+  return 'badge-coral';
+}
+
+function ccRenderApptRows(tbody, appts, upcomingOnly){
+  if(!appts.length){
+    ccRenderState(tbody, 'empty', upcomingOnly
+      ? 'No upcoming appointments — request one from the Book Appointment panel.'
+      : 'No past appointments yet.', 6);
+    return;
+  }
+  const nowMs = Date.now();
+  tbody.innerHTML = appts.map(a => {
+    const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+    const badge = ccApptBadgeClass(a.status);
+    const canAct = (a.status === 'Requested' || a.status === 'Confirmed') &&
+      new Date(a.scheduled_at).getTime() >= nowMs;
+    const reason = a.status_reason
+      ? `<span style="display:block;font-size:.72rem;color:var(--slate-400);">${ccEscape(a.status_reason)}</span>`
+      : '';
+    const rescheduleBtn = canAct
+      ? `<button class="btn btn-sm btn-ghost" data-reschedule="${ccEscape(a.id)}">Reschedule</button>`
+      : '';
+    const cancelBtn = canAct
+      ? `<button class="btn btn-sm btn-ghost" data-cancel="${ccEscape(a.id)}">Cancel</button>`
+      : '';
+    return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span>${reason}</td><td>${rescheduleBtn} ${cancelBtn}</td></tr>`;
+  }).join('');
+  ccBindApptActions(tbody);
+}
+
+/* gate S3: cancelling frees a doctor's slot — confirm first, no one-click destroy */
+function ccBindApptActions(tbody){
+  tbody.querySelectorAll('button[data-cancel]').forEach(btn => btn.addEventListener('click', () => {
+    const row = btn.closest('tr');
+    const when = row ? row.children[0].textContent : 'this appointment';
+    const doc = row ? row.children[1].textContent : 'your doctor';
+    ccModalOpen(`
+      <div class="cc-modal-head">
+        <div><h3>Cancel this appointment?</h3><p>The slot is freed for other patients immediately.</p></div>
+        <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
+      </div>
+      <div class="cc-modal-body">
+        <div class="cc-modal-summary">${ccEscape(when)}<br>${ccEscape(doc)}</div>
+      </div>
+      <div class="cc-modal-foot">
+        <button class="btn btn-ghost" data-modal-close>Keep appointment</button>
+        <button class="btn btn-danger" id="cancelYes">Yes, cancel it</button>
+      </div>`);
+    document.getElementById('cancelYes').addEventListener('click', async function(){
+      this.disabled = true;
+      try {
+        await ccApi(`/api/appointments/${btn.dataset.cancel}`, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
+        ccModalClose();
+        ccToast('Appointment cancelled');
+        if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
+        await window.ccPollAppointments();
+      } catch(err){ ccModalClose(); ccToast(err.message || 'Could not cancel.'); }
+    });
+  }));
+  tbody.querySelectorAll('button[data-reschedule]').forEach(btn => btn.addEventListener('click', () => {
+    openRescheduleModal(window.ccMyApptsById[btn.dataset.reschedule]);
+  }));
+}
+
 window.ccMyAppointmentsLoad = async function(){
   const tbody = document.getElementById('myApptTable');
   if(!tbody) return;
+  const more = document.getElementById('apptLoadMore');
   try {
     ccRenderState(tbody, 'loading', '', 6);
-    const appts = await window.ccPatientAppointments();
-    if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments yet — request one from the Book Appointment panel.', 6); return; }
-    tbody.innerHTML = appts.map(a => {
-      const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-      const badge = a.status === 'Confirmed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : a.status === 'Cancelled' ? 'badge-slate' : 'badge-coral';
-      const cancelBtn = (a.status === 'Requested' || a.status === 'Confirmed') ?
-        `<button class="btn btn-sm btn-ghost" data-cancel="${a.id}">Cancel</button>` : '';
-      return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td><td>${cancelBtn}</td></tr>`;
-    }).join('');
-    /* gate S3: cancelling frees a doctor's slot — confirm first, no one-click destroy */
-    tbody.querySelectorAll('button[data-cancel]').forEach(btn => btn.addEventListener('click', () => {
-      const row = btn.closest('tr');
-      const when = row ? row.children[0].textContent : 'this appointment';
-      const doc = row ? row.children[1].textContent : 'your doctor';
-      ccModalOpen(`
-        <div class="cc-modal-head">
-          <div><h3>Cancel this appointment?</h3><p>The slot is freed for other patients immediately.</p></div>
-          <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
-        </div>
-        <div class="cc-modal-body">
-          <div class="cc-modal-summary">${ccEscape(when)}<br>${ccEscape(doc)}</div>
-        </div>
-        <div class="cc-modal-foot">
-          <button class="btn btn-ghost" data-modal-close>Keep appointment</button>
-          <button class="btn btn-danger" id="cancelYes">Yes, cancel it</button>
-        </div>`);
-      document.getElementById('cancelYes').addEventListener('click', async function(){
-        this.disabled = true;
-        try {
-          await ccApi(`/api/appointments/${btn.dataset.cancel}`, { method:'PATCH', body: JSON.stringify({ status:'Cancelled' }) });
-          ccModalClose();
-          ccToast('Appointment cancelled');
-          if(window.ccInvalidateAppointments) window.ccInvalidateAppointments();
-          ccMyAppointmentsLoad();
-          if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
-          if(window.ccLoadPatientDashboard) window.ccLoadPatientDashboard(JSON.parse(localStorage.getItem('cloudcare_session') || 'null'));
-        } catch(err){ ccModalClose(); ccToast(err.message || 'Could not cancel.'); }
-      });
-    }));
+    if(ccApptScope === 'upcoming'){
+      const appts = await window.ccPatientAppointments();
+      ccRecordStatuses(appts);
+      appts.forEach(a => { window.ccMyApptsById[a.id] = a; });
+      if(more) more.style.display = 'none';
+      ccRenderApptRows(tbody, appts, true);
+    } else {
+      const page = await ccApi(`/api/appointments?scope=past&page_size=20&page=${ccPastPage}`);
+      ccPastItems = ccPastPage === 1 ? page : ccPastItems.concat(page);
+      ccPastItems.forEach(a => { window.ccMyApptsById[a.id] = a; });
+      if(more) more.style.display = page.length === 20 ? '' : 'none';
+      ccRenderApptRows(tbody, ccPastItems, false);
+    }
   } catch(err){ ccRenderState(tbody, 'error', err.message, 6); }
+};
+
+/* Feature flags: keep the markup, hide modules with no backend yet. */
+(function ccApplyFeatureFlags(){
+  const flags = window.CC_FEATURES || {};
+  ['records', 'prescriptions', 'risk'].forEach(name => {
+    if(flags[name]) return;
+    document.querySelectorAll(`.side-nav a[data-panel="${name}"], #panel-${name}`).forEach(el => {
+      el.hidden = true;
+    });
+  });
+})();
+
+/* Upcoming / Past tabs + Load more */
+(function ccInitApptTabs(){
+  const tabs = document.getElementById('apptTabs');
+  if(!tabs) return;
+  tabs.querySelectorAll('[data-appt-scope]').forEach(btn => btn.addEventListener('click', () => {
+    ccApptScope = btn.dataset.apptScope;
+    ccPastPage = 1;
+    tabs.querySelectorAll('[data-appt-scope]').forEach(b => {
+      const on = b === btn;
+      b.classList.toggle('btn-primary', on);
+      b.classList.toggle('btn-ghost', !on);
+    });
+    window.ccMyAppointmentsLoad();
+  }));
+  const more = document.getElementById('apptLoadMore');
+  if(more) more.addEventListener('click', () => { ccPastPage += 1; window.ccMyAppointmentsLoad(); });
+})();
+
+/* Upcoming appointment card — gates C4 + S20: only a FUTURE
+   Requested/Confirmed appointment is ever shown as "upcoming". Extracted so
+   the 60s poll can refresh just this card. */
+window.ccRefreshUpcomingCard = async function(){
+  try {
+    const appts = await window.ccPatientAppointments();
+    const upcoming = window.ccPickUpcoming(appts);
+    window.ccUpcomingAppt = upcoming;
+    const upcomingStat = document.getElementById('statUpcoming');
+    if(upcomingStat) upcomingStat.textContent = String(window.ccCountUpcoming(appts));
+    const nextStat = document.getElementById('statNextVisit');
+    if(nextStat){
+      nextStat.textContent = upcoming
+        ? new Date(upcoming.scheduled_at).toLocaleDateString('en-IN', { day:'numeric', month:'short' })
+        : '—';
+    }
+    const pastStat = document.getElementById('statPastVisits');
+    if(pastStat){
+      try {
+        const past = await ccApi('/api/appointments?scope=past&page_size=100');
+        pastStat.textContent = String(past.length);
+      } catch(e){ pastStat.textContent = '—'; }
+    }
+    const card = document.getElementById('upcomingApptCard');
+    if(upcoming && card){
+      const when = new Date(upcoming.scheduled_at).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      card.removeAttribute('style');
+      card.dataset.doctor = upcoming.doctor_name;
+      card.dataset.dept = upcoming.department;
+      card.dataset.when = when;
+      card.dataset.mode = upcoming.mode;
+      card.innerHTML = `
+        <div class="flex items-center gap-12">
+          <div class="avatar-sm" style="width:46px;height:46px;font-size:1rem;">${ccEscape(upcoming.doctor_name.replace('Dr. ','').split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
+          <div>
+            <strong style="display:block;">${ccEscape(upcoming.doctor_name)} — ${ccEscape(upcoming.department)}</strong>
+            <span style="font-size:.85rem;color:var(--slate-500);" data-appt-when>${ccEscape(when)} · ${ccEscape(upcoming.mode)}</span>
+          </div>
+        </div>
+        <div class="flex gap-12 mt-24">
+          <button class="btn btn-ghost btn-sm" onclick="openRescheduleModal(window.ccUpcomingAppt)">Reschedule</button>
+        </div>`;
+      window.ccCurrentApptId = upcoming.id;
+      window.ccMyApptsById[upcoming.id] = upcoming;
+    } else if(card){
+      card.removeAttribute('style');
+      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming appointments</strong><span style="font-size:.82rem;color:var(--slate-400);">Nothing booked in the future — request one from the Book Appointment panel.</span></div>';
+    }
+  } catch(err){ ccToast('Could not load your next appointment.'); }
 };
 
 /* ---------------- API-driven panels ---------------- */
@@ -709,10 +897,6 @@ window.ccLoadPatientDashboard = async function(user){
       ageRow.appendChild(ageInput);
       emailInput.parentElement.after(ageRow);
     }
-    const riskStat = document.getElementById('statRisk');
-    if(riskStat && profile.risk_score !== null && profile.risk_score !== undefined){
-      riskStat.textContent = profile.risk_score + '%';
-    }
     const riskCard = document.querySelector('#panel-risk .ai-card h3');
     if(riskCard && profile.risk_score !== null && profile.risk_score !== undefined){
       const level = profile.risk_score > 70 ? 'High' : profile.risk_score > 40 ? 'Moderate' : 'Low';
@@ -720,38 +904,8 @@ window.ccLoadPatientDashboard = async function(user){
     }
   } catch(err){ ccToast('Could not load your profile.'); }
 
-  /* upcoming appointment card — gates C4 + S20: shared fetch, and only a
-     FUTURE Requested/Confirmed appointment is ever shown as "upcoming". */
-  try {
-    const appts = await window.ccPatientAppointments();
-    const upcoming = window.ccPickUpcoming(appts);
-    const upcomingStat = document.getElementById('statUpcoming');
-    if(upcomingStat) upcomingStat.textContent = String(window.ccCountUpcoming(appts));
-    const card = document.getElementById('upcomingApptCard');
-    if(upcoming && card){
-      const when = new Date(upcoming.scheduled_at).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-      card.removeAttribute('style');
-      card.dataset.doctor = upcoming.doctor_name;
-      card.dataset.dept = upcoming.department;
-      card.dataset.when = when;
-      card.dataset.mode = upcoming.mode;
-      card.innerHTML = `
-        <div class="flex items-center gap-12">
-          <div class="avatar-sm" style="width:46px;height:46px;font-size:1rem;">${ccEscape(upcoming.doctor_name.replace('Dr. ','').split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
-          <div>
-            <strong style="display:block;">${ccEscape(upcoming.doctor_name)} — ${ccEscape(upcoming.department)}</strong>
-            <span style="font-size:.85rem;color:var(--slate-500);" data-appt-when>${ccEscape(when)} · ${ccEscape(upcoming.mode)}</span>
-          </div>
-        </div>
-        <div class="flex gap-12 mt-24">
-          <button class="btn btn-ghost btn-sm" onclick="openRescheduleModal()">Reschedule</button>
-        </div>`;
-      window.ccCurrentApptId = upcoming.id;
-    } else if(card){
-      card.removeAttribute('style');
-      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming appointments</strong><span style="font-size:.82rem;color:var(--slate-400);">Nothing booked in the future — request one from the Book Appointment panel.</span></div>';
-    }
-  } catch(err){ ccToast('Could not load your next appointment.'); }
+  /* upcoming appointment card */
+  await window.ccRefreshUpcomingCard();
 
   /* billing table from the API */
   try {
@@ -777,7 +931,7 @@ window.ccLoadPatientDashboard = async function(user){
         return `<tr id="invRow-${ccEscape(b.invoice_no)}"><td class="mono">${ccEscape(b.invoice_no)}</td><td>${ccEscape(b.description || 'Consultation')}</td><td class="mono">₹${Number(b.amount).toLocaleString('en-IN')}</td><td data-inv-status><span class="badge ${badge}">${ccEscape(b.status)}</span></td><td data-inv-action>${payButton}</td></tr>`;
       }).join('');
       tbody.querySelectorAll('button[data-bill-index]').forEach(btn => {
-        btn.addEventListener('click', () => openPaymentModal(parseInt(btn.dataset.billIndex, 10)));
+        btn.addEventListener('click', () => ccOpenPaymentInstructions(parseInt(btn.dataset.billIndex, 10)));
       });
     }
   } catch(err){
@@ -795,6 +949,9 @@ window.ccLoadPatientDashboard = async function(user){
   if(records){
     records.innerHTML = '<div class="risk-row" style="padding:14px 0;"><div><strong style="font-size:.9rem;">Records module coming soon</strong><span style="display:block;font-size:.78rem;color:var(--slate-400);">Lab reports and consultation summaries will appear here once the records module is connected.</span></div></div>';
   }
+
+  /* telemedicine cards come from the appointments list */
+  if(window.ccLoadTelemedicine) await window.ccLoadTelemedicine();
 };
 
 /* ================= Default billing details (gates 14b/18/19/20a) =================
@@ -860,21 +1017,22 @@ window.ccInitBillingDetails = async function(){
   });
 };
 
-/* ================= Reschedule appointment (calls the API) ================= */
-function openRescheduleModal(){
-  const card = document.getElementById('upcomingApptCard');
-  const apptId = window.ccCurrentApptId;
-
-  /* The upcoming-appointment card caches these when the dashboard loads. */
-  const doctor = card?.dataset.doctor || 'your doctor';
-  const dept = card?.dataset.dept || '';
-  const when = card?.dataset.when || '';
-  const mode = card?.dataset.mode || 'In-person';
-
-  if(!apptId){
+/* ================= Reschedule appointment (calls the API) =================
+   Takes the appointment object (table row or upcoming card) and offers only
+   real free slots for that doctor, reloaded whenever the date changes. */
+function openRescheduleModal(appt){
+  if(!appt && window.ccCurrentApptId && window.ccMyApptsById){
+    appt = window.ccMyApptsById[window.ccCurrentApptId];
+  }
+  if(!appt){
     ccToast('No upcoming appointment to reschedule.');
     return;
   }
+
+  const doctor = appt.doctor_name || 'your doctor';
+  const dept = appt.department || '';
+  const when = new Date(appt.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+  const mode = appt.mode || 'In-person';
 
   ccModalOpen(`
     <div class="cc-modal-head">
@@ -884,176 +1042,191 @@ function openRescheduleModal(){
     <div class="cc-modal-body">
       <div class="cc-modal-summary"><strong>${ccEscape(doctor)}</strong> · ${ccEscape(dept)}<br>Currently: ${ccEscape(when)} · ${ccEscape(mode)}</div>
       <form id="rescheduleForm">
-        <div class="cc-field-row">
-          <div class="field"><label for="rsDate">New date</label><input id="rsDate" type="date" required></div>
-          <div class="field"><label for="rsTime">New time</label><input id="rsTime" type="time" required></div>
-        </div>
+        <div class="field"><label for="rsDate">New date</label><input id="rsDate" type="date" required></div>
         <div class="field"><label for="rsMode">Visit mode</label>
-          <select id="rsMode"><option${mode==='In-person'?' selected':''}>In-person</option><option${mode==='Telemedicine'?' selected':''}>Telemedicine</option></select>
+          <select id="rsMode"><option${mode==='Telemedicine'?'':' selected'}>In-person</option><option${mode==='Telemedicine'?' selected':''}>Telemedicine</option></select>
+        </div>
+        <div class="field">
+          <p class="field-label">Available times <span style="color:var(--slate-400);font-weight:600;">(30-minute slots · IST)</span></p>
+          <div id="rsSlotGrid" class="slot-grid"><span style="font-size:.85rem;color:var(--slate-400);">Pick a date to see free slots.</span></div>
         </div>
         <div class="field"><label for="rsReason">Reason for change (optional)</label><textarea id="rsReason" placeholder="e.g. Schedule conflict…"></textarea></div>
       </form>
+      <div class="cc-modal-note">Your doctor will need to confirm the new time.</div>
     </div>
     <div class="cc-modal-foot">
       <button class="btn btn-ghost" data-modal-close>Cancel</button>
-      <button class="btn btn-primary" id="rsConfirm">Confirm reschedule</button>
+      <button class="btn btn-primary" id="rsConfirm" disabled>Confirm reschedule</button>
     </div>
   `);
 
-  /* gate S13: same IST floor as the booking form — never offer yesterday */
   const rsDateInput = document.getElementById('rsDate');
-  rsDateInput.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const rsGrid = document.getElementById('rsSlotGrid');
+  const rsConfirm = document.getElementById('rsConfirm');
+  let rsSelected = null;
+  let rsRequestId = 0;
 
-  document.getElementById('rsConfirm').addEventListener('click', async () => {
+  /* gate S13: same IST floor as the booking form — never offer yesterday */
+  rsDateInput.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  rsDateInput.value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(appt.scheduled_at));
+
+  function rsRenderSlots(slots){
+    rsSelected = null;
+    rsConfirm.disabled = true;
+    if(!slots.length){
+      rsGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">No open slots on this date. Booked, past, out-of-shift and 22:00–05:00 times are never listed.</span>';
+      return;
+    }
+    rsGrid.innerHTML = slots.map(s =>
+      `<button type="button" class="slot-btn" aria-pressed="false" data-label="${ccEscape(s.label)}">${ccEscape(s.label)}<small>${ccEscape(s.shift)} shift</small></button>`
+    ).join('');
+    rsGrid.querySelectorAll('.slot-btn').forEach(btn => btn.addEventListener('click', () => {
+      rsGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true');
+      rsSelected = btn.dataset.label;
+      rsConfirm.disabled = false;
+    }));
+  }
+
+  async function rsLoadSlots(){
+    if(!rsDateInput.value){ rsRenderSlots([]); return; }
+    const requestId = ++rsRequestId;
+    rsSelected = null;
+    rsConfirm.disabled = true;
+    rsGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Checking open slots…</span>';
+    try {
+      const slots = await ccApi(`/api/doctors/${appt.doctor_id}/slots?date=${rsDateInput.value}`);
+      if(requestId !== rsRequestId) return; // stale response
+      rsRenderSlots(slots);
+    } catch(err){
+      if(requestId !== rsRequestId) return;
+      rsGrid.innerHTML = `<span style="font-size:.85rem;color:#c9432c;">${ccEscape(err.message || 'Could not load slots.')}</span>`;
+    }
+  }
+
+  rsDateInput.addEventListener('change', rsLoadSlots);
+  rsLoadSlots();
+
+  rsConfirm.addEventListener('click', async () => {
     const form = document.getElementById('rescheduleForm');
     if(!form.reportValidity()) return;
-    const dateVal = rsDateInput.value;
-    const timeVal = document.getElementById('rsTime').value;
-    const newMode = document.getElementById('rsMode').value;
-    const btn = document.getElementById('rsConfirm');
-    btn.disabled = true;
+    if(!rsSelected){ ccToast('Choose a time slot first.'); return; }
+    rsConfirm.disabled = true;
 
-    /* gate S13: reuse toClinicIso — +05:30 clinic time, same as booking,
-       instead of converting through the browser's own timezone. */
-    const clinicIso = window.toClinicIso(dateVal, timeVal);
+    /* +05:30 clinic time, same helper the booking form uses. */
+    const clinicIso = window.toClinicIso(rsDateInput.value, rsSelected);
     try {
-      await ccApi(`/api/appointments/${apptId}`, {
+      await ccApi(`/api/appointments/${appt.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ scheduled_at: clinicIso, mode: newMode }),
+        body: JSON.stringify({ scheduled_at: clinicIso, mode: document.getElementById('rsMode').value }),
       });
-      const niceDate = new Date(clinicIso).toLocaleString('en-IN', { weekday:'long', hour:'numeric', minute:'2-digit' });
-      card.dataset.when = niceDate;
-      card.dataset.mode = newMode;
-      card.querySelector('[data-appt-when]').textContent = `${niceDate} · ${newMode}`;
       ccModalClose();
-      ccToast('Appointment rescheduled');
-      if(window.ccRefreshVisitBadge) ccRefreshVisitBadge();
-      if(window.ccMyAppointmentsLoad) ccMyAppointmentsLoad();
+      ccToast('Appointment rescheduled — your doctor will need to confirm the new time.');
+      window.ccInvalidateAppointments();
+      await window.ccPollAppointments();
     } catch(err){
-      btn.disabled = false;
+      rsConfirm.disabled = false;
       ccToast(err.message || 'Could not reschedule.');
     }
   });
 }
 
-/* ================= Schedule a telemedicine call ================= */
-function openTelemedicineModal(){
-  ccModalOpen(`
-    <div class="cc-modal-head">
-      <div><h3>Schedule a video consult</h3><p>We'll confirm the exact time with your doctor.</p></div>
-      <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
-    </div>
-    <div class="cc-modal-body">
-      <form id="teleForm">
-        <div class="field"><label for="teleDoctor">Doctor</label><select id="teleDoctor"><option value="">Loading doctors…</option></select></div>
-        <div class="cc-field-row">
-          <div class="field"><label for="teleDate">Preferred date</label><input id="teleDate" type="date" required></div>
-          <div class="field"><label for="teleTime">Preferred time</label><input id="teleTime" type="time" required></div>
+/* ================= Telemedicine (real appointments only) =================
+   Built from the patient's own appointments: no fake "scheduled" card and
+   no invented doctor. The join button follows the real status and times. */
+window.ccLoadTelemedicine = async function(){
+  const panel = document.getElementById('telePanel');
+  if(!panel) return;
+  try {
+    const appts = (await window.ccPatientAppointments())
+      .filter(a => a.mode === 'Telemedicine')
+      .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at));
+    if(!appts.length){
+      panel.innerHTML = `
+        <div class="panel" style="max-width:560px;margin:0 auto;text-align:center;padding:50px 30px;">
+          <div class="card-icon" style="margin:0 auto 18px;">🎥</div>
+          <h3>No telemedicine appointment scheduled</h3>
+          <p>Book a visit with Visit mode set to Telemedicine and it will appear here.</p>
+          <button class="btn btn-primary" type="button" id="teleBookBtn">Request a video consult</button>
+        </div>`;
+      const bookBtn = document.getElementById('teleBookBtn');
+      if(bookBtn) bookBtn.addEventListener('click', () => {
+        const link = document.querySelector('.side-nav a[data-panel="book"]');
+        if(link) link.click();
+        const modeSel = document.getElementById('bookMode');
+        if(modeSel) modeSel.value = 'Telemedicine';
+      });
+      return;
+    }
+    panel.innerHTML = appts.map(a => {
+      const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      const badge = ccApptBadgeClass(a.status);
+      const start = new Date(a.scheduled_at).getTime();
+      const now = Date.now();
+      const openAt = start - 10 * 60000;
+      const closeAt = start + 60 * 60000;
+      let action;
+      if(a.status === 'Requested'){
+        action = '<button class="btn btn-accent" type="button" disabled>Waiting for doctor to confirm</button>';
+      } else if(a.status === 'Confirmed' && now < openAt){
+        action = '<button class="btn btn-accent" type="button" disabled>Link available 10 minutes before</button>';
+      } else if(a.status === 'Confirmed' && now >= openAt && now <= closeAt){
+        action = a.meeting_url
+          ? `<a class="btn btn-accent" href="${ccEscape(a.meeting_url)}" target="_blank" rel="noopener noreferrer">Join call</a>`
+          : '<button class="btn btn-accent" type="button" disabled>Waiting for the doctor to add the link</button>';
+      } else if(a.status === 'Confirmed'){
+        action = '<button class="btn btn-accent" type="button" disabled>Call window has ended</button>';
+      } else {
+        action = `<button class="btn btn-accent" type="button" disabled>${ccEscape(a.status)}</button>`;
+      }
+      return `<div class="panel" style="padding:22px;">
+        <div class="flex items-center gap-12" style="justify-content:space-between;flex-wrap:wrap;">
+          <div class="flex items-center gap-12">
+            <div class="avatar" style="width:46px;height:46px;font-size:1.05rem;">🎥</div>
+            <div>
+              <strong style="display:block;">${ccEscape(a.doctor_name)} — ${ccEscape(a.department)}</strong>
+              <span style="font-size:.85rem;color:var(--slate-500);">${ccEscape(when)}</span>
+            </div>
+          </div>
+          <span class="badge ${badge}">${ccEscape(a.status)}</span>
         </div>
-        <div class="field"><label for="teleReason">Reason for the call</label><textarea id="teleReason" placeholder="Briefly describe what you'd like to discuss…" required></textarea></div>
-      </form>
-      <div class="cc-modal-note">📶 Make sure you have a stable connection and a quiet space at your scheduled time.</div>
-    </div>
-    <div class="cc-modal-foot">
-      <button class="btn btn-ghost" data-modal-close>Cancel</button>
-      <button class="btn btn-accent" id="teleConfirm">Request slot</button>
-    </div>
-  `);
+        <div class="flex gap-12 mt-16">${action}</div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    panel.innerHTML = '<div class="panel" style="padding:22px;color:#c9432c;font-size:.85rem;">Could not load your video consultations.</div>';
+  }
+};
 
-  /* gate S21: doctors come from the API — the old hard-coded "Dr. Aakash
-     Verma / Dr. Meera Iyer" options are gone. */
-  const teleSel = document.getElementById('teleDoctor');
-  const teleDate = document.getElementById('teleDate');
-  teleDate.min = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  ccApi('/api/doctors').then(list => {
-    if(!list.length){ teleSel.innerHTML = '<option value="">No doctors available</option>'; return; }
-    teleSel.innerHTML = ['<option value="">Select a doctor…</option>']
-      .concat(list.map(d => {
-        const label = `${d.name} — ${d.department}${d.average_rating ? ` · ★ ${d.average_rating}` : ''}`;
-        return `<option value="${ccEscape(label)}">${ccEscape(label)}</option>`;
-      })).join('');
-  }).catch(() => { teleSel.innerHTML = '<option value="">Could not load doctors</option>'; });
-
-  document.getElementById('teleConfirm').addEventListener('click', () => {
-    const form = document.getElementById('teleForm');
-    if(!form.reportValidity()) return;
-    const doctor = document.getElementById('teleDoctor').value;
-    if(!doctor){ ccToast('Choose a doctor first.'); return; }
-    const dateVal = document.getElementById('teleDate').value;
-    const timeVal = document.getElementById('teleTime').value;
-    const reason = document.getElementById('teleReason').value.trim();
-    const niceDate = new Date(dateVal + 'T' + timeVal).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-
-    document.querySelector('#teleScheduledState [data-tele-doctor]').textContent = doctor;
-    document.querySelector('#teleScheduledState [data-tele-when]').textContent = `Requested for ${niceDate} · awaiting confirmation`;
-    document.querySelector('#teleScheduledState [data-tele-reason]').textContent = `Reason: ${reason}`;
-    document.getElementById('teleEmptyState').style.display = 'none';
-    document.getElementById('teleScheduledState').style.display = '';
-
-    ccModalClose();
-    ccToast('Video consult requested (demo)');
-  });
-}
-
-function cancelTelemedicine(){
-  document.getElementById('teleScheduledState').style.display = 'none';
-  document.getElementById('teleEmptyState').style.display = '';
-  ccToast('Video consult cancelled (demo)');
-}
-
-/* ================= Pay an invoice =================
-   Placeholder UI — collects card-style fields but never sends them anywhere.
-   Swap ccFakeChargeCard() for a real payment-gateway request (Stripe,
-   Razorpay, etc.) and wire it to a backend payments endpoint. */
-function openPaymentModal(billIndex){
+/* ================= How to pay =================
+   Online card charging is not connected, so this modal tells the patient how
+   to actually pay instead of pretending to take card details. The clinic
+   marks the invoice Paid from the admin console after receiving the money. */
+function ccOpenPaymentInstructions(billIndex){
   const bill = (window.ccBills || [])[billIndex];
   if(!bill) return;
   const amount = Number(bill.amount).toLocaleString('en-IN');
-  const invoiceId = bill.invoice_no;
+  const instructions = typeof CC_PAYMENT_INSTRUCTIONS === 'string'
+    ? CC_PAYMENT_INSTRUCTIONS
+    : 'Pay at the clinic reception. Your invoice is marked Paid by the clinic after payment.';
   ccModalOpen(`
     <div class="cc-modal-head">
-      <div><h3>Pay invoice ${ccEscape(invoiceId)}</h3><p>${ccEscape(bill.description || 'Consultation')}</p></div>
-      <span class="badge badge-slate">Demo, not saved</span>
+      <div><h3>How to pay invoice ${ccEscape(bill.invoice_no)}</h3><p>${ccEscape(bill.description || 'Consultation')}</p></div>
       <button class="cc-modal-close" data-modal-close aria-label="Close">✕</button>
     </div>
     <div class="cc-modal-body">
       <div class="cc-modal-summary">Amount due<br><strong style="font-size:1.3rem;">₹${amount}</strong></div>
-      <form id="paymentForm">
-        <div class="field"><label for="payName">Name on card</label><input id="payName" type="text" placeholder="Cardholder name" autocomplete="cc-name" required></div>
-        <div class="field"><label for="payCard">Card number</label><input id="payCard" type="text" inputmode="numeric" maxlength="19" placeholder="4242 4242 4242 4242" autocomplete="cc-number" required></div>
-        <div class="cc-field-row">
-          <div class="field"><label for="payExpiry">Expiry</label><input id="payExpiry" type="text" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" required></div>
-          <div class="field"><label for="payCvv">CVV</label><input id="payCvv" type="text" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc" required></div>
-        </div>
-      </form>
-      <div class="cc-modal-note">🔒 Demo form only — no card data is stored or transmitted, and the invoice is NOT marked paid (nothing is saved; reload to confirm).</div>
+      <p style="font-size:.9rem;margin:0;">${ccEscape(instructions)}</p>
+      <div class="cc-modal-note">Your invoice stays Pending until the clinic confirms your payment.</div>
     </div>
     <div class="cc-modal-foot">
-      <button class="btn btn-ghost" data-modal-close>Cancel</button>
-      <button class="btn btn-accent" id="payConfirm">Pay ₹${amount}</button>
+      <button class="btn btn-primary" data-modal-close>Got it</button>
     </div>
   `);
-
-  document.getElementById('payConfirm').addEventListener('click', function(){
-    const form = document.getElementById('paymentForm');
-    if(!form.reportValidity()) return;
-    const btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Processing…';
-
-    ccFakeChargeCard().then(() => {
-      /* gate S21: the demo flow never flips the row to Paid on the client.
-         There is no payments endpoint, so claiming success would be a lie —
-         the invoice stays Pending until a real gateway is wired up. */
-      ccModalClose();
-      ccToast('Demo payment — nothing was saved. This invoice stays Pending.');
-    });
-  });
-}
-
-/* Stand-in for a real gateway call — replace with an actual charge request later. */
-function ccFakeChargeCard(){
-  return new Promise(resolve => setTimeout(resolve, 900));
 }
 </script>
 </body>

@@ -1,8 +1,9 @@
 import enum
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, Integer, String, func, UniqueConstraint
+from sqlalchemy import DateTime, Enum, Integer, Numeric, String, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +45,13 @@ class User(Base):
         nullable=False,
         default=0,
         server_default="0",
+    )
+    # Consultation fee charged when a doctor completes an appointment.
+    consultation_fee: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("500.00"),
+        server_default="500",
     )
 
     patient_profile: Mapped["Patient | None"] = relationship(

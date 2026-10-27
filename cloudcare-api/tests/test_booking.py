@@ -31,7 +31,7 @@ def _patient_token(client, email: str) -> str:
     return resp.json()["access_token"]
 
 
-def _book(client, token, doctor_id, day, hour, minute=0, department="Cardiology"):
+def _book(client, token, doctor_id, day, hour, minute=0, department="Cardiology", mode="In-person"):
     return client.post(
         "/api/appointments",
         headers=auth_headers(token),
@@ -39,7 +39,7 @@ def _book(client, token, doctor_id, day, hour, minute=0, department="Cardiology"
             "doctor_id": doctor_id,
             "scheduled_at": _ist(day, hour, minute),
             "department": department,
-            "mode": "In-person",
+            "mode": mode,
             "reason": "Gate test",
         },
     )
@@ -286,9 +286,27 @@ def test_confirm_decline_scoping_and_slot_freeing(client, seeded_ids):
     )
     assert patient_confirm.status_code == 403
 
-    # Decline frees the slot again (gate 9).
-    declined = client.patch(
+    # Cancelling a Confirmed appointment frees the slot; terminal states stay
+    # terminal (Declined is only reachable from Requested).
+    cancelled_confirmed = client.patch(
         f"/api/appointments/{appt_id}",
+        headers=auth_headers(doctor_token),
+        json={"status": "Cancelled"},
+    )
+    assert cancelled_confirmed.status_code == 200
+    assert cancelled_confirmed.json()["status"] == "Cancelled"
+    revived = client.patch(
+        f"/api/appointments/{appt_id}",
+        headers=auth_headers(doctor_token),
+        json={"status": "Confirmed"},
+    )
+    assert revived.status_code == 400
+
+    # Decline also frees the slot again (gate 9), from a Requested booking.
+    decline_booking = _book(client, token, seeded_ids["doctor_id"], day, 8, 30)
+    assert decline_booking.status_code == 201, decline_booking.text
+    declined = client.patch(
+        f"/api/appointments/{decline_booking.json()['id']}",
         headers=auth_headers(doctor_token),
         json={"status": "Declined"},
     )
@@ -316,14 +334,18 @@ def test_confirm_decline_scoping_and_slot_freeing(client, seeded_ids):
 
 
 def test_patient_cannot_book_overlapping_own_appointment(client, seeded_ids):
-    """Same patient, same doctor, overlapping (non-aligned) times."""
+    """Same patient, same doctor, same slot -> 409 (never a second active row)."""
     day = _future_day()
     token = _patient_token(client, "overlap@example.com")
 
     first = _book(client, token, seeded_ids["doctor_id"], day, 12)
     assert first.status_code == 201
 
-    # 12:15 overlaps the 12:00-12:30 booking.
-    overlapping = _book(client, token, seeded_ids["doctor_id"], day, 12, 15)
+    # 10:15 / 12:15 are not on the 30-minute grid at all: 400, not 409.
+    off_grid = _book(client, token, seeded_ids["doctor_id"], day, 12, 15)
+    assert off_grid.status_code == 400
+    assert "listed time slots" in off_grid.json()["detail"]
+
+    overlapping = _book(client, token, seeded_ids["doctor_id"], day, 12)
     assert overlapping.status_code == 409
     assert overlapping.json()["detail"]["message"] == TAKEN_MESSAGE

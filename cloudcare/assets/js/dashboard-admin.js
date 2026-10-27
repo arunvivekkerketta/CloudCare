@@ -1,28 +1,7 @@
-/* CloudCare — admin dashboard: API-driven tables + demo charts.
-   All names/emails come from the API and are HTML-escaped with ccEscape. */
-/* gate C6: Chart.js setup is guarded AND isolated — if the CDN is blocked
-   every chart block below no-ops while the table loaders keep working. */
-if(window.Chart){ try{
-  Chart.defaults.font.family = "'Manrope', sans-serif";
-  Chart.defaults.color = (window.ccChartPalette ? window.ccChartPalette().text : '#5b7370');
-}catch(e){} }
+/* CloudCare — admin dashboard: API-driven tables and KPIs.
+   All names/emails come from the API and are HTML-escaped with ccEscape.
+   There are no invented charts: panels without a backend say so. */
 const ccTeal = '#2fb8a4', ccCoral = '#ff6f59', ccGold = '#e0a53c';
-
-/* ---------- overview charts ---------- */
-if(window.Chart){ try{
-window.ccChart(document.getElementById('admissionsChart'), {
-  type:'line',
-  data:{ labels:['Wk1','Wk2','Wk3','Wk4','Wk5','Wk6','Wk7','Wk8'],
-    datasets:[{ label:'Admissions', data:[210,224,198,240,255,238,262,281], borderColor:ccTeal, backgroundColor:'rgba(47,184,164,.12)', fill:true, tension:.4 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
-});
-window.ccChart(document.getElementById('deptChart'), {
-  type:'doughnut',
-  data:{ labels:['Cardiology','General','Pediatrics','Orthopedics','Neurology'],
-    datasets:[{ data:[28,24,18,16,14], backgroundColor:[ccTeal,ccCoral,ccGold,'#7f938f','#8fe3d8'] }]},
-  options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'62%' }
-});
-}catch(e){} }
 
 /* ---------- overview KPIs (gate C5) ----------
    Real numbers only: role head-counts, the next-7-days appointment list and
@@ -116,9 +95,14 @@ async function ccLoadAdminDoctors(){
 const ccApptBadge = {
   Requested: 'badge-gold',
   Confirmed: 'badge-mint',
+  Completed: 'badge-mint',
   Declined: 'badge-slate',
   Cancelled: 'badge-slate',
+  Expired: 'badge-slate',
 };
+
+ccApptBadge.Completed = 'badge-mint';
+ccApptBadge.Expired = 'badge-slate';
 
 async function ccLoadAdminAppointments(){
   const tbody = document.getElementById('apptTable');
@@ -171,55 +155,20 @@ function ccComingSoon(title, note){
 }
 
 /* ---------- AI console: inventory ---------- */
-if(window.Chart){ try{
-window.ccChart(document.getElementById('inventoryChart'), {
-  type:'bar',
-  data:{ labels:['Insulin','Amlodipine','Furosemide','Salbutamol','Oxygen (cyl.)'],
-    datasets:[{ label:'Days of stock left', data:[4,6,7,9,11], backgroundColor:(c)=>c.raw<7?ccCoral:ccGold, borderRadius:6 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
-});
-}catch(e){} }
 document.getElementById('reorderList').innerHTML = ccComingSoon(
   'Inventory AI coming soon',
   'Reorder suggestions will appear here once the inventory module is connected.'
 );
 
 /* ---------- AI console: risk ---------- */
-if(window.Chart){ try{
-window.ccChart(document.getElementById('riskChart'), {
-  type:'doughnut',
-  data:{ labels:['Low','Medium','High'], datasets:[{ data:[62,26,12], backgroundColor:[ccTeal,ccGold,ccCoral] }]},
-  options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:10, padding:14}}}, cutout:'62%' }
-});
-}catch(e){} }
 document.getElementById('riskList').innerHTML = ccComingSoon(
   'AI risk scoring coming soon',
   'Patient risk rankings will appear here once the analytics module is connected.'
 );
 
 /* ---------- AI console: resource forecast ---------- */
-if(window.Chart){ try{
-window.ccChart(document.getElementById('resourceChart'), {
-  type:'line',
-  data:{ labels:['Day 2','Day 4','Day 6','Day 8','Day 10','Day 12','Day 14'],
-    datasets:[{ label:'ICU occupancy %', data:[71,74,79,84,88,90,93], borderColor:ccCoral, backgroundColor:'rgba(255,111,89,.12)', fill:true, tension:.4 }]},
-  options:{ plugins:{legend:{display:false}}, scales:{y:{min:50,max:100}} }
-});
-}catch(e){} }
 document.getElementById('resourceList').innerHTML = ccComingSoon(
   'Capacity forecasting coming soon',
   'Resource recommendations will appear here once the forecasting module is connected.'
 );
 
-/* ---------- reports panel ---------- */
-if(window.Chart){ try{
-window.ccChart(document.getElementById('reportChart'), {
-  type:'bar',
-  data:{ labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'],
-    datasets:[
-      { label:'Revenue (₹L)', data:[32,35,31,38,40,37,42,41.2], backgroundColor:ccTeal, borderRadius:6 },
-      { label:'Expenses (₹L)', data:[24,25,23,27,28,26,29,28.5], backgroundColor:'#cfe8e3', borderRadius:6 },
-    ]},
-  options:{ plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}} }
-});
-}catch(e){} }

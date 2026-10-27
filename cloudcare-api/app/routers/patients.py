@@ -2,12 +2,13 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit import record_audit
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Patient, User, UserRole
+from app.models import Appointment, Patient, User, UserRole
 from app.schemas import (
     PatientProfile,
     PatientUpdate,
@@ -26,6 +27,20 @@ def _patient_or_403(db: Session, current_user: User) -> Patient:
             detail="No patient profile is linked to this account.",
         )
     return patient
+
+
+def _doctor_patient_filter(doctor_id):
+    """A doctor's patients are the ones assigned to them PLUS anyone who has
+    ever booked an appointment with them (so a new booking shows up)."""
+    has_appt = (
+        select(Appointment.patient_id)
+        .where(Appointment.doctor_id == doctor_id)
+        .scalar_subquery()
+    )
+    return or_(
+        Patient.assigned_doctor_id == doctor_id,
+        Patient.id.in_(has_appt),
+    )
 
 
 def _serialize_patient(patient: Patient) -> dict:
@@ -113,7 +128,16 @@ def get_patient(
         if patient.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not permitted.")
     elif current_user.role == UserRole.doctor:
-        if patient.assigned_doctor_id != current_user.id:
+        has_appointment = (
+            db.query(Appointment.id)
+            .filter(
+                Appointment.patient_id == patient.id,
+                Appointment.doctor_id == current_user.id,
+            )
+            .first()
+            is not None
+        )
+        if patient.assigned_doctor_id != current_user.id and not has_appointment:
             raise HTTPException(status_code=403, detail="Not permitted.")
     elif current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not permitted.")
@@ -139,7 +163,7 @@ def list_patients(
 
     query = db.query(Patient).options(joinedload(Patient.user), joinedload(Patient.assigned_doctor))
     if current_user.role == UserRole.doctor:
-        query = query.filter(Patient.assigned_doctor_id == current_user.id)
+        query = query.filter(_doctor_patient_filter(current_user.id))
 
     total = query.count()
     rows = (

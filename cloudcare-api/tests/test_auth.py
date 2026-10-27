@@ -265,7 +265,11 @@ def test_me_patch_updates_name_and_email(client, seeded_ids):
     response = client.patch(
         "/api/auth/me",
         headers=headers,
-        json={"name": "Renamed Patient", "email": "renamed.a@example.com"},
+        json={
+            "name": "Renamed Patient",
+            "email": "renamed.a@example.com",
+            "current_password": "Patient!Pass123",
+        },
     )
     assert response.status_code == 200
     body = response.json()
@@ -284,7 +288,7 @@ def test_me_patch_email_conflict_returns_409(client, seeded_ids):
     response = client.patch(
         "/api/auth/me",
         headers=auth_headers(token),
-        json={"email": "patient.b@example.com"},
+        json={"email": "patient.b@example.com", "current_password": "Patient!Pass123"},
     )
     assert response.status_code == 409
 

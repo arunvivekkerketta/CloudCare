@@ -159,7 +159,9 @@
 
 const REVIEW_PAGE_SIZE = 9;
 
-let ccReviewsExpanded = false;
+let ccReviewsItems = [];
+let ccReviewsPage = 1;
+let ccReviewsPages = 1;
 let ccMyReviews = [];
 
 function starString(n){
@@ -189,85 +191,67 @@ function renderReviewCards(items){
   }).join('');
 }
 
-/* The API groups reviews by doctor; for the public wall we fetch each
-   doctor's pages and flatten. gate C2: every count and the button's
-   visibility come from the SUMMED review_count in /api/reviews/summary —
-   never from how many rows this page happened to fetch. */
-const CC_COLLAPSED_PER_DOC = 3;
-
-async function ccReviewsLoadPage(summaries){
+/* One public endpoint feeds the whole wall: all doctors' reviews, newest
+   first, 9 per page. "Load more" appends the next page and disappears on
+   the last one; the count line always shows shown-of-total. */
+async function ccReviewsLoadPage(page){
   const state = document.getElementById('reviewLoadState');
   const showAllBtn = document.getElementById('showAllBtn');
-  const withReviews = (summaries || []).filter(s => s.doctor_id && s.review_count > 0);
-  const totalCount = withReviews.reduce((sum, s) => sum + s.review_count, 0);
-
-  if(!totalCount){
-    renderReviewCards([]);
-    state.textContent = 'No reviews yet — be the first to tell patients about a doctor.';
-    showAllBtn.style.display = 'none';
-    return;
+  try {
+    const res = await ccApi(`/api/reviews?page=${page}&page_size=${REVIEW_PAGE_SIZE}`);
+    const items = (res && res.items) || [];
+    ccReviewsItems = page === 1 ? items : ccReviewsItems.concat(items);
+    ccReviewsPage = (res && res.page) || page;
+    ccReviewsPages = (res && res.pages) || 1;
+    renderReviewCards(ccReviewsItems);
+    if(!(res && res.total)){
+      state.textContent = 'No reviews yet — be the first to tell patients about a doctor.';
+      showAllBtn.style.display = 'none';
+      return;
+    }
+    state.textContent = `Showing ${ccReviewsItems.length} of ${res.total}`;
+    showAllBtn.textContent = 'Load more';
+    showAllBtn.style.display = ccReviewsPage < ccReviewsPages ? '' : 'none';
+  } catch(err){
+    state.textContent = err.message || 'Could not load reviews.';
   }
-
-  let all = [];
-  if(ccReviewsExpanded){
-    /* expanded mode: walk pages PER DOCTOR until review_count is reached */
-    const perDoctor = await Promise.all(withReviews.map(async (doc) => {
-      const items = [];
-      let page = 1;
-      while(items.length < doc.review_count){
-        const res = await ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=${page}&page_size=100`);
-        const chunk = (res && res.items) || [];
-        if(!chunk.length) break;
-        items.push(...chunk);
-        if(page >= (res.pages || 1)) break;
-        page += 1;
-      }
-      return items.slice(0, doc.review_count);
-    }));
-    perDoctor.forEach(list => all.push(...list));
-  } else {
-    /* collapsed mode: 3 freshest reviews per doctor, fetched in parallel */
-    const perDoctor = await Promise.all(withReviews.map(doc =>
-      ccApi(`/api/reviews/doctors/${doc.doctor_id}?page=1&page_size=${CC_COLLAPSED_PER_DOC}`)
-        .then(res => (res && res.items) || [])
-        .catch(() => [])
-    ));
-    perDoctor.forEach(list => all.push(...list));
-  }
-
-  all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const fetched = Math.min(all.length, REVIEW_PAGE_SIZE);
-  renderReviewCards(ccReviewsExpanded ? all : all.slice(0, REVIEW_PAGE_SIZE));
-  state.textContent = ccReviewsExpanded
-    ? `Showing all ${totalCount} reviews`
-    : `Showing ${fetched} of ${totalCount}`;
-  showAllBtn.style.display = (!ccReviewsExpanded && totalCount > fetched) ? '' : 'none';
 }
 
 document.getElementById('showAllBtn').addEventListener('click', async () => {
-  ccReviewsExpanded = true;
-  await ccReviewsReload();
+  await ccReviewsLoadPage(ccReviewsPage + 1);
 });
 
 async function ccReviewsReload(){
-  try {
-    const summaries = await ccApi('/api/reviews/summary');
-    await ccReviewsLoadPage(summaries);
-  } catch(err){
-    document.getElementById('reviewLoadState').textContent = err.message || 'Could not load reviews.';
-  }
+  await ccReviewsLoadPage(1);
 }
 
-/* -------- doctors dropdown for the submit form -------- */
+/* -------- doctors dropdown: only doctors this patient has visited -------- */
 async function ccReviewDoctorsLoad(){
   const sel = document.getElementById('revDoctor');
+  const submitBtn = document.querySelector('#reviewForm button[type="submit"]');
+  const token = localStorage.getItem('cloudcare_token');
+  const session = ccGetSession();
+  if(!token || !session || (typeof ccSessionExpired === 'function' && ccSessionExpired())){
+    sel.innerHTML = '<option value="">Sign in to see the doctors you can review</option>';
+    if(submitBtn) submitBtn.disabled = true;
+    return false;
+  }
   try {
-    const list = await ccApi('/api/doctors');
+    const list = await ccApi('/api/reviews/eligible-doctors', { noRedirect: true });
+    if(!list.length){
+      sel.innerHTML = '<option value="">You can review a doctor after your first visit.</option>';
+      if(submitBtn) submitBtn.disabled = true;
+      return false;
+    }
     sel.innerHTML = ['<option value="">Select a doctor…</option>']
-      .concat(list.map(d => `<option value="${d.id}">${ccEscape(d.name)} — ${ccEscape(d.department)}${d.average_rating ? ` · ★ ${d.average_rating}` : ''}</option>`))
+      .concat(list.map(d => `<option value="${ccEscape(d.doctor_id)}">${ccEscape(d.name)} — ${ccEscape(d.department || 'General')}</option>`))
       .join('');
+    if(submitBtn) submitBtn.disabled = false;
+    return true;
   } catch(err){
     sel.innerHTML = '<option value="">Could not load doctors</option>';
+    if(submitBtn) submitBtn.disabled = true;
+    return false;
   }
 }
 
@@ -285,6 +269,7 @@ async function ccReviewAuthState(){
   const session = ccGetSession();
   if(!token || !session || (typeof ccSessionExpired === 'function' && ccSessionExpired())){
     el.innerHTML = '<a href="login.html?next=' + encodeURIComponent('reviews.html') + '" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> as a patient to leave a review.';
+    document.getElementById('revDoctor').innerHTML = '<option value="">Sign in to see the doctors you can review</option>';
     setEnabled(false);
     return;
   }
@@ -295,6 +280,7 @@ async function ccReviewAuthState(){
     if(user.role !== 'patient'){
       el.textContent = 'Only patient accounts can write reviews.';
       if(submitNote) submitNote.textContent = 'Patient accounts only.';
+      document.getElementById('revDoctor').innerHTML = '<option value="">Only patients can review doctors</option>';
       setEnabled(false);
       return;
     }
@@ -303,8 +289,11 @@ async function ccReviewAuthState(){
     ccMyReviews.forEach(r => byDoctor[r.doctor_id] = r);
     window.ccMyReviewByDoctor = byDoctor;
     el.textContent = `Signed in as ${user.name} — a repeat submit for the same doctor updates your review.`;
-    if(submitNote) submitNote.textContent = 'Sign in as a patient to submit a review.';
-    setEnabled(true);
+    const canReview = await ccReviewDoctorsLoad();
+    if(submitNote) submitNote.textContent = canReview
+      ? 'Sign in as a patient to submit a review.'
+      : 'You can review a doctor after your first visit.';
+    setEnabled(canReview);
   } catch(err){
     el.innerHTML = '<a href="login.html" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> to leave a review.';
     setEnabled(false);
@@ -401,7 +390,6 @@ document.getElementById('reviewForm').addEventListener('submit', async (e) => {
 
 /* -------- boot -------- */
 ccReviewsReload();
-ccReviewDoctorsLoad();
 ccReviewAuthState();
 </script>
 </body>

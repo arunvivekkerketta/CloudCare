@@ -1,6 +1,6 @@
 """Gate tests, batch 3: reviews API, admin CRUD, guards, safe doctor delete."""
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from tests.conftest import auth_headers, login, register_patient
@@ -47,6 +47,38 @@ def _ist(day: date, hour: int, minute: int = 0) -> str:
     return f"{day.isoformat()}T{hour:02d}:{minute:02d}:00+05:30"
 
 
+_past_visit_seq = 0
+
+
+def _give_past_visit(db_session, email: str, doctor_id: str) -> None:
+    """Reviews now require a real visit: a past Confirmed appointment.
+
+    Each call moves one minute further back: two Confirmed visits at the same
+    doctor and minute would violate the active-slot unique index, and the
+    Windows clock can return an identical `datetime.now()` twice in a row.
+    """
+    global _past_visit_seq
+    _past_visit_seq += 1
+    patient = (
+        db_session.query(Patient)
+        .join(User, Patient.user_id == User.id)
+        .filter(User.email == email)
+        .first()
+    )
+    assert patient is not None
+    db_session.add(
+        Appointment(
+            patient_id=patient.id,
+            doctor_id=uuid.UUID(doctor_id),
+            scheduled_at=datetime.now(timezone.utc)
+            - timedelta(days=2, minutes=_past_visit_seq),
+            department="Cardiology",
+            status="Confirmed",
+        )
+    )
+    db_session.commit()
+
+
 def _book(client, token, doctor_id, day, hour, minute=0):
     resp = client.post(
         "/api/appointments",
@@ -64,7 +96,7 @@ def _book(client, token, doctor_id, day, hour, minute=0):
 
 
 # --------------------------------------------------------------- gate 12a
-def test_review_create_validation_and_upsert(client, seeded_ids):
+def test_review_create_validation_and_upsert(client, seeded_ids, db_session):
     token = _patient(client, "reviewer1@example.com")
     doctor_id = seeded_ids["doctor_id"]
     H = auth_headers(token)
@@ -88,6 +120,8 @@ def test_review_create_validation_and_upsert(client, seeded_ids):
         client.post("/api/reviews", headers=H, json={"doctor_id": str(uuid.uuid4()), "rating": 5, "text": "Valid review text"}).status_code == 404
     )
 
+    _give_past_visit(db_session, "reviewer1@example.com", doctor_id)
+
     first = client.post(
         "/api/reviews", headers=H,
         json={"doctor_id": doctor_id, "rating": 5, "text": "Excellent care and attention."},
@@ -110,10 +144,12 @@ def test_review_create_validation_and_upsert(client, seeded_ids):
     assert len(rows) == 1
 
 
-def test_reviews_public_listing_and_summary(client, seeded_ids):
+def test_reviews_public_listing_and_summary(client, seeded_ids, db_session):
     token_a = _patient(client, "pubrev.a@example.com")
     token_b = _patient(client, "pubrev.b@example.com")
     doctor_id = seeded_ids["doctor_id"]
+    _give_past_visit(db_session, "pubrev.a@example.com", doctor_id)
+    _give_past_visit(db_session, "pubrev.b@example.com", doctor_id)
 
     ok1 = client.post("/api/reviews", headers=auth_headers(token_a), json={"doctor_id": doctor_id, "rating": 5, "text": "Outstanding diagnosis skills."})
     ok2 = client.post("/api/reviews", headers=auth_headers(token_b), json={"doctor_id": doctor_id, "rating": 3, "text": "Decent wait time overall ok."})
@@ -132,10 +168,11 @@ def test_reviews_public_listing_and_summary(client, seeded_ids):
     assert client.post("/api/reviews", json={"doctor_id": doctor_id, "rating": 5, "text": "Anonymous not allowed"}).status_code == 401
 
 
-def test_review_delete_author_only(client, seeded_ids):
+def test_review_delete_author_only(client, seeded_ids, db_session):
     token = _patient(client, "deleter@example.com")
     doctor_id = seeded_ids["doctor_id"]
     H = auth_headers(token)
+    _give_past_visit(db_session, "deleter@example.com", doctor_id)
 
     client.post("/api/reviews", headers=H, json={"doctor_id": doctor_id, "rating": 2, "text": "Average experience sadly here."})
 
@@ -310,12 +347,13 @@ def test_admin_appointments_list_and_filters(client, seeded_ids):
 
 
 # --------------------------------------------------------------- gate 23a
-def test_review_moderation_admin_list_and_delete(client, seeded_ids):
+def test_review_moderation_admin_list_and_delete(client, seeded_ids, db_session):
     admin = _admin_token(client)
     H = auth_headers(admin)
     doctor_id = seeded_ids["doctor_id"]
 
     token = _patient(client, "moderated@example.com")
+    _give_past_visit(db_session, "moderated@example.com", doctor_id)
     created = client.post("/api/reviews", headers=auth_headers(token), json={"doctor_id": doctor_id, "rating": 1, "text": "Terrible rude service sorry."})
     review_id = created.json()["id"]
 

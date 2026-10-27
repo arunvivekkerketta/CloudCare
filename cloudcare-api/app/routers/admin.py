@@ -52,11 +52,13 @@ from app.schemas import (
     SpecialtyResponse,
     ShiftsSync,
 )
+from app.notify import notify
 from app.scheduling import (
     ACTIVE_STATUSES,
     CLINIC_TZ,
     normalize_shift_rules,
     shift_windows,
+    to_clinic,
 )
 from app.security import hash_password
 from app.utils import client_ip
@@ -83,6 +85,7 @@ def _serialize_admin_user(user: User) -> dict:
         role=user.role.value,
         department=user.department,
         created_at=user.created_at,
+        consultation_fee=user.consultation_fee,
     ).model_dump()
 
 
@@ -190,6 +193,8 @@ def update_user(
 
     if "password" in data and data["password"]:
         user.hashed_password = hash_password(data.pop("password"))
+        # An admin-set password revokes that user's existing sessions.
+        user.token_version += 1
     for field, value in data.items():
         setattr(user, field, value)
 
@@ -639,12 +644,61 @@ def create_doctor_leave(
 
     row = DoctorLeave(doctor_id=doctor.id, leave_date=day, shift_name=payload.shift_name)
     db.add(row)
+
+    # A leave must also release anything already booked in that window:
+    # cancel the appointments, tell the patients and record the count.
+    day_start_utc = dt_cls(day.year, day.month, day.day, tzinfo=CLINIC_TZ).astimezone(
+        timezone_cls.utc
+    )
+    day_end_utc = day_start_utc + timedelta(days=1)
+    booked = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id == doctor.id,
+            Appointment.status.in_(ACTIVE_STATUSES),
+            Appointment.scheduled_at >= day_start_utc,
+            Appointment.scheduled_at < day_end_utc,
+        )
+        .all()
+    )
+    if payload.shift_name:
+        windows = {name: (start, end) for name, start, end in shift_windows(db, doctor)}
+        window = windows.get(payload.shift_name)
+        if window is not None:
+            shift_start, shift_end = window
+            booked = [
+                appt
+                for appt in booked
+                if shift_start <= to_clinic(appt.scheduled_at).time() < shift_end
+            ]
+
+    doctor_label = (
+        doctor.name
+        if doctor.name.lower().startswith("dr")
+        else f"Dr. {doctor.name}"
+    )
+    for appt in booked:
+        appt.status = "Cancelled"
+        appt.status_reason = "Doctor on leave"
+        notify(
+            db,
+            appt.patient.user_id,
+            f"Your appointment with {doctor_label} on "
+            f"{to_clinic(appt.scheduled_at).strftime('%a %d %b, %H:%M')} was "
+            f"cancelled because the doctor is on leave. "
+            f"Please book another slot.",
+        )
+
     record_audit(
         db,
         action="admin_create_leave",
         resource=f"leave:{row.id}",
         actor=current_user,
-        detail=f"{doctor.email} {day.isoformat()} ({payload.shift_name or 'whole day'})",
+        detail=(
+            f"{doctor.email} {day.isoformat()} "
+            f"({payload.shift_name or 'whole day'}); "
+            f"cancelled {len(booked)} appointment(s)"
+        ),
         ip_address=client_ip(request),
     )
     db.commit()
@@ -655,6 +709,7 @@ def create_doctor_leave(
             doctor_id=str(row.doctor_id),
             leave_date=row.leave_date,
             shift_name=row.shift_name,
+            cancelled_appointments=len(booked),
         ).model_dump(mode="json")
     ]
 
@@ -767,6 +822,12 @@ def admin_list_appointments(
     Default view: from the start of the current clinic day through the next
     `within_days` days, optionally filtered by status or doctor.
     """
+    ALLOWED_STATUS_FILTERS = {
+        "Requested", "Confirmed", "Declined", "Cancelled", "Completed", "Expired",
+    }
+    if status_filter and status_filter not in ALLOWED_STATUS_FILTERS:
+        raise HTTPException(status_code=422, detail=f"Unsupported status filter: {status_filter!r}")
+
     query = db.query(Appointment).options(
         joinedload(Appointment.patient).joinedload(Patient.user),
         joinedload(Appointment.doctor),
