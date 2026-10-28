@@ -12,6 +12,43 @@ function ccEscape(value){
     .replace(/'/g, '&#39;');
 }
 
+/* ---------- clinic time (Asia/Kolkata) ---------- */
+/* Every appointment time is rendered in clinic time with an explicit IST
+   label, so a patient travelling or with a different device time zone still
+   sees the same wall-clock time they booked. */
+const CC_CLINIC_TZ = 'Asia/Kolkata';
+
+function ccClinicFormat(value, options){
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toLocaleString('en-IN', Object.assign({ timeZone: CC_CLINIC_TZ }, options || {}));
+}
+
+function ccClinicDateTime(value){
+  return ccClinicFormat(value, {
+    weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit',
+  }) + ' IST';
+}
+
+function ccClinicTime(value, options){
+  return ccClinicFormat(value, Object.assign({ hour:'numeric', minute:'2-digit' }, options || {})) + ' IST';
+}
+
+function ccClinicDate(value){
+  return ccClinicFormat(value, { day:'numeric', month:'short' });
+}
+
+function ccClinicStamp(value){
+  return ccClinicFormat(value, {
+    day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit',
+  }) + ' IST';
+}
+
+/* en-CA gives YYYY-MM-DD, convenient for comparing clinic days. */
+function ccClinicDateKey(value){
+  const date = value instanceof Date ? value : new Date(value);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: CC_CLINIC_TZ }).format(date);
+}
+
 /* ---------- session storage ---------- */
 function ccGetSession(){
   try { return JSON.parse(localStorage.getItem('cloudcare_session')); }

@@ -766,7 +766,7 @@ def create_doctor_leave(
             db,
             appt.patient.user_id,
             f"Your appointment with {display_name} on "
-            f"{to_clinic(appt.scheduled_at).strftime('%a %d %b, %H:%M')} was "
+            f"{to_clinic(appt.scheduled_at).strftime('%a %d %b, %H:%M')} IST was "
             f"cancelled because the doctor is on leave. "
             f"Please book another slot.",
         )

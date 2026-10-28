@@ -205,7 +205,7 @@ window.ccLoadDoctorDashboard = async function(user){
   /* ---- gate C5: overview stats / subtitle / badge are API-derived ---- */
   const todays = appts.filter(a =>
     (a.status === 'Requested' || a.status === 'Confirmed') &&
-    new Date(a.scheduled_at).toDateString() === new Date().toDateString());
+    ccClinicDateKey(a.scheduled_at) === ccClinicDateKey(new Date()));
   const setStat = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
   setStat('statToday', String(todays.length));
   setStat('statUnderCare', String(patients.length));
@@ -259,7 +259,7 @@ function ccRenderDoctorAppointments(appts, apptsUpcoming){
   if(!appts.length){ ccRenderState(tbody, 'empty', 'No appointments scheduled.', 6); }
   else {
     tbody.innerHTML = appts.map(a => {
-      const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      const when = ccClinicDateTime(a.scheduled_at);
       const badge = a.status === 'Confirmed' || a.status === 'Completed' ? 'badge-mint' : a.status === 'Requested' ? 'badge-gold' : a.status === 'Cancelled' || a.status === 'Expired' ? 'badge-slate' : 'badge-coral';
       let actions = '';
       const started = new Date(a.scheduled_at).getTime() < Date.now();
@@ -281,11 +281,10 @@ function ccRenderDoctorAppointments(appts, apptsUpcoming){
   }
 function ccNextUpLabel(iso){
   const d = new Date(iso);
-  const fmtDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' });
-  const isToday = fmtDay.format(d) === fmtDay.format(new Date());
-  const time = d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata' });
+  const isToday = ccClinicDateKey(d) === ccClinicDateKey(new Date());
+  const time = ccClinicFormat(d, { hour:'2-digit', minute:'2-digit', hour12:false }) + ' IST';
   if(isToday) return time;
-  return d.toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', timeZone:'Asia/Kolkata' }) + ' · ' + time;
+  return ccClinicFormat(d, { weekday:'short', day:'numeric', month:'short' }) + ' · ' + time;
 }
 
   /* next-up list: gate C4 — FUTURE Requested/Confirmed only, soonest first */

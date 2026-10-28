@@ -103,7 +103,7 @@ def _doctor_label(name: str) -> str:
 
 
 def _when_label(value: datetime) -> str:
-    return to_clinic(value).strftime("%a %d %b, %H:%M")
+    return to_clinic(value).strftime("%a %d %b, %H:%M") + " IST"
 
 
 def _serialize(appt: Appointment) -> dict:

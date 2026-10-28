@@ -20,6 +20,7 @@
   function whenLabel(value) {
     const date = new Date(value);
     if (isNaN(date.getTime())) return '';
+    if (typeof ccClinicStamp === 'function') return ccClinicStamp(date);
     return date.toLocaleString('en-IN', {
       day: 'numeric',
       month: 'short',

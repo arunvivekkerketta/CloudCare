@@ -418,7 +418,7 @@ window.ccInitPatientBooking = function(user){
   function slotLabel(s){
     const start = new Date(s.start);
     const end = new Date(start.getTime() + 30 * 60000);
-    const fmt = d => d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false });
+    const fmt = d => ccClinicFormat(d, { hour:'2-digit', minute:'2-digit', hour12:false });
     return { start:s.start, label: `${s.label} IST`, short: fmt(start), shift: s.shift };
   }
 
@@ -461,7 +461,7 @@ window.ccInitPatientBooking = function(user){
     }
     slotGrid.innerHTML = slots.map(s => {
       const l = slotLabel(s);
-      return `<button type="button" class="slot-btn" aria-pressed="false" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(s.label)}<small>${ccEscape(s.shift)} shift</small></button>`;
+      return `<button type="button" class="slot-btn" aria-pressed="false" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(l.label)}<small>${ccEscape(s.shift)} shift</small></button>`;
     }).join('');
     slotGrid.querySelectorAll('.slot-btn').forEach(btn => btn.addEventListener('click', () => {
       slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
@@ -499,7 +499,7 @@ window.ccInitPatientBooking = function(user){
           reason: document.getElementById('bookReason').value.trim(),
         }),
       });
-      const when = new Date(created.scheduled_at).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      const when = ccClinicDateTime(created.scheduled_at);
       ccModalOpen(`
         <div class="cc-modal-head" style="text-align:center;padding:26px 24px 0;">
           <div style="font-size:2.6rem;line-height:1;">✅</div>
@@ -562,7 +562,7 @@ window.ccInitPatientBooking = function(user){
           suggestBox.innerHTML = `<div class="cc-suggest-title">${ccEscape(message)} — try one of these:</div>` +
             `<div class="cc-suggestions">` + nearest.map(s => {
               const l = slotLabel(s);
-              return `<button type="button" class="cc-suggestion-btn" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(s.label)}<br><small style="font-family:var(--font-body);font-size:.62rem;">${ccEscape(s.shift)} shift</small></button>`;
+              return `<button type="button" class="cc-suggestion-btn" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(l.label)}<br><small style="font-family:var(--font-body);font-size:.62rem;">${ccEscape(s.shift)} shift</small></button>`;
             }).join('') +
             `<span class="cc-suggestion-hint">Times refresh automatically — first come, first served.</span></div>`;
         }
@@ -687,7 +687,7 @@ window.ccRefreshVisitBadge = async function(){
       .filter(a => { const t = new Date(a.scheduled_at).getTime(); return t >= nowMs && t <= nowMs + 48 * 3600 * 1000; })
       .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at))[0];
     if(next){
-      const local = new Date(next.scheduled_at).toLocaleString('en-IN', { weekday:'short', hour:'numeric', minute:'2-digit' });
+      const local = ccClinicDateTime(next.scheduled_at);
       const mode = next.status === 'Confirmed' ? 'Confirmed' : 'Requested';
       badge.textContent = `● Visit: Next 2 days — ${ccEscape(local)} (${mode})`;
       badge.dataset.short = 'Visit soon';
@@ -755,7 +755,7 @@ function ccRenderApptRows(tbody, appts, upcomingOnly){
   }
   const nowMs = Date.now();
   tbody.innerHTML = appts.map(a => {
-    const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+    const when = ccClinicDateTime(a.scheduled_at);
     const canAct = (a.status === 'Requested' || a.status === 'Confirmed') &&
       new Date(a.scheduled_at).getTime() >= nowMs;
     const reason = a.status_reason
@@ -871,7 +871,7 @@ window.ccRefreshUpcomingCard = async function(){
     const nextStat = document.getElementById('statNextVisit');
     if(nextStat){
       nextStat.textContent = upcoming
-        ? new Date(upcoming.scheduled_at).toLocaleDateString('en-IN', { day:'numeric', month:'short' })
+        ? ccClinicDate(upcoming.scheduled_at)
         : '—';
     }
     const pastStat = document.getElementById('statPastVisits');
@@ -885,7 +885,7 @@ window.ccRefreshUpcomingCard = async function(){
     if(upcomingList.length && card){
       card.removeAttribute('style');
       card.innerHTML = upcomingList.slice(0, 3).map(a => {
-        const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+        const when = ccClinicDateTime(a.scheduled_at);
         window.ccMyApptsById[a.id] = a;
         return `<div class="appt-mini">
           <div>
@@ -1014,7 +1014,7 @@ window.ccInitBillingDetails = async function(){
     const meta = document.getElementById('billMetaLine');
     if(meta){
       meta.textContent = b.updated_at
-        ? `Last updated ${new Date(b.updated_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' })}`
+        ? `Last updated ${ccClinicStamp(b.updated_at)}`
         : 'Never saved yet.';
     }
   } catch(err){
@@ -1042,7 +1042,7 @@ window.ccInitBillingDetails = async function(){
       const meta = document.getElementById('billMetaLine');
       if(meta){
         meta.textContent = saved.updated_at
-          ? `Last updated ${new Date(saved.updated_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' })}`
+          ? `Last updated ${ccClinicStamp(saved.updated_at)}`
           : '';
       }
     } catch(err){
@@ -1065,7 +1065,7 @@ function openRescheduleModal(appt){
 
   const doctor = appt.doctor_name || 'your doctor';
   const dept = appt.department || '';
-  const when = new Date(appt.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+  const when = ccClinicDateTime(appt.scheduled_at);
   const mode = appt.mode || 'In-person';
 
   ccModalOpen(`
@@ -1197,7 +1197,7 @@ window.ccLoadTelemedicine = async function(){
       return;
     }
     panel.innerHTML = appts.map(a => {
-      const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+      const when = ccClinicDateTime(a.scheduled_at);
       const start = new Date(a.scheduled_at).getTime();
       const now = Date.now();
       const openAt = start - 10 * 60000;

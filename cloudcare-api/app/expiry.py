@@ -37,7 +37,7 @@ def expire_stale_appointments(db: Session) -> int:
     for appt in stale:
         appt.status = "Expired"
         appt.status_reason = EXPIRED_REASON
-        when = to_clinic(appt.scheduled_at).strftime("%a %d %b, %H:%M")
+        when = to_clinic(appt.scheduled_at).strftime("%a %d %b, %H:%M") + " IST"
         notify(
             db,
             appt.patient.user_id,

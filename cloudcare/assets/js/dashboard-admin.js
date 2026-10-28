@@ -116,9 +116,7 @@ async function ccLoadAdminAppointments(){
       return;
     }
     tbody.innerHTML = appts.map(a => {
-      const when = new Date(a.scheduled_at).toLocaleString('en-IN', {
-        day:'numeric', month:'short', hour:'numeric', minute:'2-digit', hour12:true,
-      });
+      const when = ccClinicDateTime(a.scheduled_at);
       const badge = ccApptBadge[a.status] || 'badge-slate';
       return `<tr><td class="mono" style="white-space:nowrap;">${ccEscape(when)}</td><td>${ccEscape(a.patient_name)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td>
       <td>${ccEscape(a.mode)}</td><td><span class="badge ${badge}">${ccEscape(a.status)}</span></td></tr>`;

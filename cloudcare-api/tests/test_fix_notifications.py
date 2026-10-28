@@ -41,7 +41,10 @@ def test_confirming_notifies_the_patient(client, seeded_ids):
     )
 
     notes = client.get("/api/notifications", headers=auth_headers(token)).json()
-    assert any("is now Confirmed." in n["message"] for n in notes), notes
+    assert any(
+        "The doctor has accepted your appointment" in n["message"]
+        for n in notes
+    ), notes
 
 
 def test_notifications_are_scoped_per_user(client, seeded_ids):
