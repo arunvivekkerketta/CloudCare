@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 Role = Literal["patient", "doctor", "nurse", "pharmacist", "lab", "admin"]
 # StaffRole remains the list for role-pickers; AdminUserCreate accepts every
@@ -217,11 +217,30 @@ class PatientProfile(BaseModel):
 
 
 class PatientUpdate(BaseModel):
+    """Fields a patient may change on their own profile.
+
+    Clinical status is deliberately absent: only an admin or doctor may
+    change it, and the patient endpoint rejects any attempt to send it.
+    """
+
     name: str | None = Field(default=None, min_length=2, max_length=255)
     age: int | None = Field(default=None, ge=0, le=130)
     condition: str | None = Field(default=None, max_length=255)
-    status: str | None = Field(default=None, max_length=50)
     assigned_doctor_id: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_status(cls, data):
+        if isinstance(data, dict) and "status" in data:
+            raise ValueError("You cannot change your own patient status.")
+        return data
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_null(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("Name cannot be empty. Enter your full name.")
+        return _validate_name(value)
 
 
 class PatientPage(BaseModel):
@@ -248,6 +267,36 @@ class AppointmentUpdate(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
     status: AppointmentStatus | None = None
     meeting_url: str | None = Field(default=None, max_length=500)
+
+    # A PATCH may omit a field, but an explicit null for a required column
+    # must be a clear 422 — never a database error or a misleading conflict.
+    @field_validator("scheduled_at")
+    @classmethod
+    def _scheduled_not_null(cls, value: datetime | None) -> datetime:
+        if value is None:
+            raise ValueError("Choose a new appointment time.")
+        return value
+
+    @field_validator("department")
+    @classmethod
+    def _department_not_null(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("Choose a department.")
+        return value
+
+    @field_validator("mode")
+    @classmethod
+    def _mode_not_null(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("Choose In-person or Telemedicine.")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def _status_not_null(cls, value: str | None) -> str:
+        if value is None:
+            raise ValueError("Appointment status cannot be empty.")
+        return value
 
     @field_validator("meeting_url")
     @classmethod
