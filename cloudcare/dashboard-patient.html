@@ -125,8 +125,13 @@
 
       <section class="panel-view" id="panel-appointments">
         <div class="panel">
-          <div class="panel-head"><h3>My appointments</h3><span class="badge badge-slate">Requested → Confirmed · Cancel anytime</span></div>
+          <div class="panel-head"><h3>My appointments</h3><span class="badge badge-slate">Cancel anytime before the visit</span></div>
           <div class="panel-body" style="padding-top:0;">
+            <div class="status-legend" aria-label="What appointment statuses mean">
+              <span><span class="badge badge-gold">Requested</span> Waiting for the doctor to confirm</span>
+              <span><span class="badge badge-mint">Confirmed</span> The doctor has accepted</span>
+              <span><span class="badge badge-coral">Declined</span> The doctor could not take this time. Choose another time.</span>
+            </div>
             <div class="flex gap-12 mb-16" id="apptTabs">
               <button type="button" class="btn btn-sm btn-primary" data-appt-scope="upcoming">Upcoming</button>
               <button type="button" class="btn btn-sm btn-ghost" data-appt-scope="past">Past</button>
@@ -646,7 +651,7 @@ window.ccPollAppointments = async function(){
     appts.forEach(a => {
       const old = previous[a.id];
       if(hadPrevious && old && old !== a.status){
-        ccToast(`Your appointment with ${a.doctor_name} is now ${a.status}`);
+        ccToast(ccStatusChangeText(a.status, a.doctor_name));
       }
     });
     ccRecordStatuses(appts);
@@ -717,6 +722,30 @@ function ccApptBadgeClass(status){
   return 'badge-coral';
 }
 
+/* One explanation per status, reused by badges, tooltips and notifications. */
+const CC_STATUS_HELP = {
+  Requested: 'Waiting for the doctor to confirm',
+  Confirmed: 'The doctor has accepted',
+  Declined: 'The doctor could not take this time. Choose another time.',
+  Cancelled: 'This visit was cancelled.',
+  Expired: 'The doctor did not confirm in time. Choose another time.',
+  Completed: 'This visit is complete.',
+};
+
+function ccStatusBadge(status){
+  const help = CC_STATUS_HELP[status] || '';
+  return `<span class="badge ${ccApptBadgeClass(status)}" title="${ccEscape(help)}" aria-label="${ccEscape(status + (help ? ': ' + help : ''))}">${ccEscape(status)}</span>`;
+}
+
+function ccStatusChangeText(status, doctorName){
+  if(status === 'Confirmed') return `The doctor has accepted your appointment with ${doctorName}.`;
+  if(status === 'Declined') return `${doctorName} could not take this time. Choose another time.`;
+  if(status === 'Cancelled') return `Your appointment with ${doctorName} was cancelled.`;
+  if(status === 'Expired') return `The doctor did not confirm your appointment with ${doctorName} in time. Choose another time.`;
+  if(status === 'Completed') return `Your visit with ${doctorName} is complete.`;
+  return `Your appointment with ${doctorName} is now ${status}.`;
+}
+
 function ccRenderApptRows(tbody, appts, upcomingOnly){
   if(!appts.length){
     ccRenderState(tbody, 'empty', upcomingOnly
@@ -727,7 +756,6 @@ function ccRenderApptRows(tbody, appts, upcomingOnly){
   const nowMs = Date.now();
   tbody.innerHTML = appts.map(a => {
     const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-    const badge = ccApptBadgeClass(a.status);
     const canAct = (a.status === 'Requested' || a.status === 'Confirmed') &&
       new Date(a.scheduled_at).getTime() >= nowMs;
     const reason = a.status_reason
@@ -739,7 +767,7 @@ function ccRenderApptRows(tbody, appts, upcomingOnly){
     const cancelBtn = canAct
       ? `<button class="btn btn-sm btn-ghost" data-cancel="${ccEscape(a.id)}">Cancel</button>`
       : '';
-    return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td><span class="badge ${badge}">${ccEscape(a.status)}</span>${reason}</td><td>${rescheduleBtn} ${cancelBtn}</td></tr>`;
+    return `<tr><td>${ccEscape(when)}</td><td>${ccEscape(a.doctor_name)}</td><td>${ccEscape(a.department)}</td><td><span class="badge badge-slate">${ccEscape(a.mode)}</span></td><td>${ccStatusBadge(a.status)}${reason}</td><td>${rescheduleBtn} ${cancelBtn}</td></tr>`;
   }).join('');
   ccBindApptActions(tbody);
 }
@@ -864,7 +892,7 @@ window.ccRefreshUpcomingCard = async function(){
             <strong style="display:block;font-size:.9rem;">${ccEscape(a.doctor_name)} — ${ccEscape(a.department)}</strong>
             <span style="font-size:.8rem;color:var(--slate-500);">${ccEscape(when)} · ${ccEscape(a.mode)}</span>
           </div>
-          <span class="badge ${ccApptBadgeClass(a.status)}">${ccEscape(a.status)}</span>
+          ${ccStatusBadge(a.status)}
         </div>`;
       }).join('') + (upcomingList.length > 3
         ? '<div class="mt-16"><a href="#panel-appointments" data-panel-link="appointments" class="auth-link" style="font-size:.82rem;">See all ' + upcomingList.length + ' upcoming appointments</a></div>'
@@ -1170,7 +1198,6 @@ window.ccLoadTelemedicine = async function(){
     }
     panel.innerHTML = appts.map(a => {
       const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-      const badge = ccApptBadgeClass(a.status);
       const start = new Date(a.scheduled_at).getTime();
       const now = Date.now();
       const openAt = start - 10 * 60000;
@@ -1198,7 +1225,7 @@ window.ccLoadTelemedicine = async function(){
               <span style="font-size:.85rem;color:var(--slate-500);">${ccEscape(when)}</span>
             </div>
           </div>
-          <span class="badge ${badge}">${ccEscape(a.status)}</span>
+          ${ccStatusBadge(a.status)}
         </div>
         <div class="flex gap-12 mt-16">${action}</div>
       </div>`;

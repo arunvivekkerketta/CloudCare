@@ -723,6 +723,14 @@ html[data-theme="dark"] .slot-btn.selected small{ color:var(--teal-900); }
   .dash-body{ padding:24px 18px 50px; }
   .dash-topbar{ padding:18px; }
 }
+/* Patient status legend: the same words as the badges and notifications. */
+.status-legend{
+  display:flex; flex-wrap:wrap; gap:8px 20px; margin:0 0 16px;
+  padding:12px 14px; background:var(--cloud-50); border:1px solid var(--line);
+  border-radius:var(--radius-sm); font-size:.78rem; color:var(--slate-500);
+}
+.status-legend span{ display:inline-flex; align-items:center; gap:7px; }
+
 /* Compact list rows used by the patient overview (next 3 visits). */
 .appt-mini{
   display:flex; align-items:center; justify-content:space-between; gap:14px;

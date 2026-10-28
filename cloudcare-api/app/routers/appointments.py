@@ -19,6 +19,7 @@ from app.audit import record_audit
 from app.database import get_db
 from app.deps import get_current_user
 from app.expiry import expire_stale_appointments
+from app.mailer import send_email
 from app.models import Appointment, Bill, InvoiceCounter, Patient, User, UserRole
 from app.notify import notify
 from app.schemas import (
@@ -63,6 +64,37 @@ ALLOWED_TRANSITIONS = {
 }
 
 DOCTOR_STATUS_ONLY_MESSAGE = "Doctors can only confirm, decline or complete appointments."
+
+# Patient-facing wording is shared by the in-app notification and the email,
+# so a status never reads differently in two places.
+STATUS_PATIENT_MESSAGES = {
+    "Requested": (
+        "Your appointment with {doctor} on {when} is waiting for the doctor "
+        "to confirm."
+    ),
+    "Confirmed": (
+        "The doctor has accepted your appointment with {doctor} on {when}."
+    ),
+    "Declined": (
+        "{doctor} could not take your appointment on {when}. "
+        "Choose another time."
+    ),
+    "Cancelled": "Your appointment with {doctor} on {when} was cancelled.",
+    "Expired": (
+        "The doctor did not confirm your appointment with {doctor} on {when} "
+        "in time. Choose another time."
+    ),
+    "Completed": "Your visit with {doctor} on {when} is complete.",
+}
+
+STATUS_EMAIL_SUBJECTS = {
+    "Requested": "Your CloudCare appointment is waiting for confirmation",
+    "Confirmed": "Your CloudCare appointment is confirmed",
+    "Declined": "Choose another time for your CloudCare appointment",
+    "Cancelled": "Your CloudCare appointment was cancelled",
+    "Expired": "Your CloudCare appointment was not confirmed",
+    "Completed": "Your CloudCare visit is complete",
+}
 
 
 def _doctor_label(name: str) -> str:
@@ -635,11 +667,17 @@ def update_appointment(
                 f"{patient_name} cancelled the appointment on {when}.",
             )
         else:
-            notify(
-                db,
-                appt.patient.user_id,
-                f"Your appointment with {doctor_name} on {when} is now "
-                f"{appt.status}.",
+            message = STATUS_PATIENT_MESSAGES.get(
+                appt.status,
+                f"Your appointment with {doctor_name} on {when} is now {appt.status}.",
+            ).format(doctor=doctor_name, when=when)
+            notify(db, appt.patient.user_id, message)
+            send_email(
+                appt.patient.user.email,
+                STATUS_EMAIL_SUBJECTS.get(
+                    appt.status, "Your CloudCare appointment changed"
+                ),
+                f"{message}\n\nCloudCare",
             )
     if "scheduled_at" in data:
         if current_user.role == UserRole.patient:
