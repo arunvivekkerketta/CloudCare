@@ -17,15 +17,22 @@ logger = logging.getLogger("cloudcare.mailer")
 
 def send_email(to: str, subject: str, body: str) -> bool:
     if not settings.smtp_host:
-        if settings.is_production:
-            logger.warning(
-                "SMTP is not configured; email to %s was not sent.", to
+        # Only the explicit development environment may print the message
+        # body (which can contain a live password-reset link). Any other
+        # environment — staging, preview, production — logs only that the
+        # email was skipped.
+        if settings.env.strip().lower() == "development":
+            logger.info(
+                "SMTP disabled; email to %s was not sent.\nSubject: %s\n%s",
+                to,
+                subject,
+                body,
             )
-            return False
-        logger.info(
-            "SMTP disabled — email to %s\nSubject: %s\n%s", to, subject, body
+            return True
+        logger.warning(
+            "SMTP is not configured; email to %s was not sent.", to
         )
-        return True
+        return False
 
     try:
         message = EmailMessage()
