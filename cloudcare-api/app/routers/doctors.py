@@ -13,7 +13,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import DoctorShift, Review, User, UserRole
 from app.schemas import DoctorPublic, DoctorShiftOut, SlotInfo
-from app.scheduling import DEFAULT_SHIFTS, generate_day_slots, serialize_slots
+from app.scheduling import (
+    DEFAULT_SHIFTS,
+    generate_day_slots,
+    schedule_for_day,
+    serialize_slots,
+)
 
 router = APIRouter(prefix="/api/doctors", tags=["doctors"])
 
@@ -103,3 +108,34 @@ def list_free_slots(
         ) from None
 
     return serialize_slots(generate_day_slots(db, doctor, day))
+
+
+@router.get("/{doctor_id}/schedule")
+def doctor_day_schedule(
+    doctor_id: str,
+    date: str = Query(..., description="Clinic-local date, YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+):
+    """The doctor's grid for one day, with Booked and Doctor on leave slots.
+
+    Public and read-only. Patients can see availability, never another
+    patient's identity: each slot only exposes its start, end and status.
+    """
+    try:
+        doctor_uuid = uuid.UUID(doctor_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Doctor not found.") from None
+
+    doctor = db.get(User, doctor_uuid)
+    if doctor is None or doctor.role != UserRole.doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found.")
+
+    try:
+        day = date_cls.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid date format. Use YYYY-MM-DD.",
+        ) from None
+
+    return schedule_for_day(db, doctor, day)

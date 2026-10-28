@@ -242,6 +242,64 @@ def generate_day_slots(db: Session, doctor: User, day: date) -> list[dict]:
     return slots
 
 
+def schedule_for_day(db: Session, doctor: User, day: date) -> dict:
+    """Every grid slot for a clinic day, including why it cannot be booked.
+
+    The public booking screen needs to show Booked and Doctor on leave times
+    instead of silently omitting them. Available slots remain the only ones
+    that can be selected.
+    """
+    day_leaves = leaves_on(db, doctor.id, day)
+    whole_day_leave = any(l.shift_name is None for l in day_leaves)
+    leave_names = {l.shift_name for l in day_leaves if l.shift_name}
+    booked = booked_starts(db, doctor.id, day)
+    now_utc = datetime.now(timezone.utc)
+    slots: list[dict] = []
+
+    for name, shift_start, shift_end in shift_windows(db, doctor):
+        cursor = datetime.combine(day, shift_start, tzinfo=CLINIC_TZ)
+        shift_end_dt = datetime.combine(day, shift_end, tzinfo=CLINIC_TZ)
+        while cursor + timedelta(minutes=SLOT_MINUTES) <= shift_end_dt:
+            start_utc = cursor.astimezone(timezone.utc)
+            end_c = cursor + timedelta(minutes=SLOT_MINUTES)
+            in_window = (
+                cursor.time() >= WINDOW_START
+                and cursor.time() <= LAST_START
+                and end_c.date() == day
+            )
+            if in_window:
+                if whole_day_leave or name in leave_names:
+                    status = "on_leave"
+                elif start_utc in booked:
+                    status = "booked"
+                elif start_utc <= now_utc:
+                    status = "past"
+                else:
+                    status = "available"
+                slots.append(
+                    {
+                        "start": start_utc.isoformat(),
+                        "label": cursor.strftime("%H:%M"),
+                        "end_label": end_c.strftime("%H:%M"),
+                        "shift": name,
+                        "status": status,
+                    }
+                )
+            cursor += timedelta(minutes=SLOT_MINUTES)
+
+    slots.sort(key=lambda s: s["start"])
+    return {
+        "date": day.isoformat(),
+        "on_leave": whole_day_leave,
+        "leave_shifts": sorted(leave_names),
+        "shifts": [
+            {"name": name, "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M")}
+            for name, start, end in shift_windows(db, doctor)
+        ],
+        "slots": slots,
+    }
+
+
 def serialize_slots(slots: list[dict], limit: int | None = None) -> list[dict]:
     """JSON-safe slot dicts (ISO-8601 UTC with offset)."""
     if limit is not None:

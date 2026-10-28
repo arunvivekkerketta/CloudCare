@@ -106,7 +106,9 @@
 
               <div class="field" style="margin-top:6px;">
                 <p class="field-label">Available times <span style="color:var(--slate-400);font-weight:600;">(Morning 06:00–14:00 · Evening 14:00–22:00 by default)</span></p>
-                <div id="slotGrid" class="slot-grid"><span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see free slots.</span></div>
+                <p class="field-hint" style="margin-bottom:8px;">Appointments run 6:00 AM to 9:30 PM IST. Each visit lasts 30 minutes.</p>
+                <p class="field-hint" id="slotNotice" role="status" style="margin-bottom:8px;"></p>
+                <div id="slotGrid" class="slot-grid"><span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see times.</span></div>
               </div>
 
               <div class="field"><label for="bookReason">Reason for visit</label>
@@ -437,33 +439,48 @@ window.ccInitPatientBooking = function(user){
   async function loadSlots(){
     if(!doctorSel.value || !dateInput.value){ renderSlots([]); return; }
     const requestId = ++slotRequestId;
-    slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Checking open slots…</span>';
+    slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Checking times…</span>';
     try {
-      const slots = await ccApi(`/api/doctors/${doctorSel.value}/slots?date=${dateInput.value}`);
+      const schedule = await ccApi(`/api/doctors/${doctorSel.value}/schedule?date=${dateInput.value}`);
       if(requestId !== slotRequestId) return; // superseded
-      renderSlots(slots);
+      renderSlots(schedule);
     } catch(err){
       if(requestId !== slotRequestId) return; // superseded
-      slotGrid.innerHTML = `<span style="font-size:.85rem;color:#c9432c;">${ccEscape(err.message || 'Could not load slots.')}</span>`;
+      slotGrid.innerHTML = `<span style="font-size:.85rem;color:#c9432c;">${ccEscape(err.message || 'Could not load times.')}</span>`;
     }
   }
 
-  function renderSlots(slots){
+  function renderSlots(schedule){
     selectedSlot = null;
     suggestBox.style.display = 'none';
+    const notice = document.getElementById('slotNotice');
+    if(notice) notice.textContent = '';
     if(!doctorSel.value || !dateInput.value){
-      slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see free slots.</span>'; 
+      slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">Pick a doctor and date to see times.</span>'; 
       return;
     }
-    if(!slots.length){
-      slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">No open slots on this date. Booked, past, out-of-shift and 22:00–05:00 times are never listed.</span>';
+    const all = Array.isArray(schedule) ? schedule : ((schedule && schedule.slots) || []);
+    if(notice && schedule && !Array.isArray(schedule)){
+      if(schedule.on_leave){
+        notice.textContent = 'This doctor is on leave on this date. Please choose another date.';
+      } else if(schedule.leave_shifts && schedule.leave_shifts.length){
+        notice.textContent = `This doctor is on leave for the ${schedule.leave_shifts.join(' and ')} shift. Other shift times may still be open.`;
+      }
+    }
+    if(!all.length){
+      slotGrid.innerHTML = '<span style="font-size:.85rem;color:var(--slate-400);">No appointment times on this date. Try another date.</span>';
       return;
     }
-    slotGrid.innerHTML = slots.map(s => {
+    slotGrid.innerHTML = all.map(s => {
       const l = slotLabel(s);
+      const status = s.status || 'available';
+      if(status !== 'available'){
+        const label = status === 'booked' ? 'Booked' : status === 'on_leave' ? 'Doctor on leave' : 'Past';
+        return `<button type="button" class="slot-btn" disabled aria-disabled="true">${ccEscape(l.label)}<small>${label}</small></button>`;
+      }
       return `<button type="button" class="slot-btn" aria-pressed="false" data-start="${ccEscape(l.start)}" data-label="${ccEscape(s.label)}">${ccEscape(l.label)}<small>${ccEscape(s.shift)} shift</small></button>`;
     }).join('');
-    slotGrid.querySelectorAll('.slot-btn').forEach(btn => btn.addEventListener('click', () => {
+    slotGrid.querySelectorAll('.slot-btn:not([disabled])').forEach(btn => btn.addEventListener('click', () => {
       slotGrid.querySelectorAll('.slot-btn.selected').forEach(b => {
         b.classList.remove('selected');
         b.setAttribute('aria-pressed', 'false');
