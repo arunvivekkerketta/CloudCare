@@ -113,8 +113,8 @@ def main() -> int:
                    resolve(dark["--coral-500"], dark), 4.5))
 
     # --- S8: home-page mono stat numbers -----------------------------------
-    if "color:var(--teal-800)" not in index_html:
-        print("FAIL  index.html home stats must use var(--teal-800)")
+    if "home-stat-value" not in index_html:
+        print("FAIL  index.html home stats must use .home-stat-value")
         return 1
     checks.append(("home .mono stat number on card (light)",
                    resolve(light["--teal-800"], light), "#ffffff", 4.5))
@@ -129,6 +129,13 @@ def main() -> int:
     checks.append(("--slate-400 on page canvas (dark)",
                    resolve(dark["--slate-400"], dark),
                    resolve(dark["--bg-canvas"], dark), 4.5))
+
+    # --- C20: auth links ("Forgot password?" / "Create an account") -------
+    checks.append(("--coral-link on card (light)",
+                   resolve(light["--coral-link"], light), "#ffffff", 4.5))
+    checks.append(("--coral-link on card (dark)",
+                   resolve(dark["--coral-link"], dark),
+                   resolve(dark["--card-bg-solid"], dark), 4.5))
 
     # --- S8: badge text on its tinted pill ---------------------------------
     badge_coral_fg = resolve(rule(css, ".badge-coral{")["color"], light, dark)

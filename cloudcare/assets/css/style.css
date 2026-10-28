@@ -16,6 +16,8 @@
   --mint-50:#eefbf6;
   --coral-500:#ff5a3c;
   --coral-400:#ff8266;
+  /* Text links need 4.5:1 on cards, unlike the decorative coral fill. */
+  --coral-link:#a8311d;
   --coral-100:#ffe0d6;
   --gold-500:#f0a20c;
   --gold-100:#fef0d2;
@@ -66,6 +68,7 @@ html[data-theme="dark"]{
   --mint-50:#0a201c;
   --coral-500:#ff7a5c;
   --coral-400:#ff9a80;
+  --coral-link:#ff9a80;
   --coral-100:#3a1f18;
   --gold-500:#ffc24d;
   --gold-100:#3a2c10;
@@ -376,7 +379,11 @@ footer a:hover{ opacity:.7; }
   background:var(--cloud-100); border-radius:var(--radius-sm); padding:10px 14px;
 }
 .auth-switch{ text-align:center; margin-top:18px; font-size:.88rem; }
-.auth-switch a{ color:var(--coral-500); font-weight:700; }
+.auth-switch a{ color:var(--coral-link); font-weight:700; }
+.auth-link{ color:var(--coral-link); font-weight:700; }
+/* Home-page stat numbers: teal on light cards, mint on dark cards. */
+.home-stat-value{ color:var(--teal-800); }
+html[data-theme="dark"] .home-stat-value{ color:var(--mint-300); }
 
 .field{ margin-bottom:18px; }
 .field label{ display:block; font-size:.82rem; font-weight:700; color:var(--ink); margin-bottom:7px; }

@@ -268,7 +268,7 @@ async function ccReviewAuthState(){
   const token = localStorage.getItem('cloudcare_token');
   const session = ccGetSession();
   if(!token || !session || (typeof ccSessionExpired === 'function' && ccSessionExpired())){
-    el.innerHTML = '<a href="login.html?next=' + encodeURIComponent('reviews.html') + '" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> as a patient to leave a review.';
+    el.innerHTML = '<a href="login.html?next=' + encodeURIComponent('reviews.html') + '" class="auth-link">Sign in</a> as a patient to leave a review.';
     document.getElementById('revDoctor').innerHTML = '<option value="">Sign in to see the doctors you can review</option>';
     setEnabled(false);
     return;
@@ -295,7 +295,7 @@ async function ccReviewAuthState(){
       : 'You can review a doctor after your first visit.';
     setEnabled(canReview);
   } catch(err){
-    el.innerHTML = '<a href="login.html" style="color:var(--teal-700,#0f766e);font-weight:700;">Sign in</a> to leave a review.';
+    el.innerHTML = '<a href="login.html" class="auth-link">Sign in</a> to leave a review.';
     setEnabled(false);
   }
 }
