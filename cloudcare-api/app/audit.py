@@ -18,8 +18,10 @@ def record_audit(
     login/registration events that own their own transaction."""
     entry = AuditLog(
         actor_id=actor.id if actor else None,
-        action=action,
-        resource=resource,
+        action=action[:100],
+        # The column is VARCHAR(255); a long resource must be truncated here,
+        # not raise a database error after the audited action succeeded.
+        resource=(resource or "")[:255],
         detail=detail[:500] if detail else None,
         ip_address=ip_address[:64] if ip_address else None,
     )

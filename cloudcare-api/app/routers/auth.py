@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.audit import record_audit
@@ -80,7 +81,16 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
         role=UserRole.patient,  # authoritative — never client-controlled
     )
     db.add(user)
-    db.flush()  # assign user.id before creating the profile
+    try:
+        db.flush()  # assign user.id before creating the profile
+    except IntegrityError:
+        # Two registrations can pass the check above before either commits;
+        # the unique email constraint is the real authority.
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists.",
+        ) from None
 
     patient = Patient(user_id=user.id, status="Active")
     db.add(patient)
@@ -107,7 +117,14 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
         detail=f"Self-registration as patient ({email})",
         ip_address=client_ip(request),
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists.",
+        ) from None
     db.refresh(user)
     return serialize_user(user)
 

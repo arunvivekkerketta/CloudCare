@@ -79,8 +79,12 @@ def _serialize(appt: Appointment) -> dict:
         id=str(appt.id),
         patient_id=str(appt.patient_id),
         patient_name=appt.patient.user.name,
-        doctor_id=str(appt.doctor_id),
-        doctor_name=appt.doctor.name,
+        doctor_id=str(appt.doctor_id) if appt.doctor_id else None,
+        doctor_name=(
+            appt.doctor.name
+            if appt.doctor is not None
+            else (appt.doctor_name or "Former doctor")
+        ),
         department=appt.department,
         scheduled_at=as_utc(appt.scheduled_at),
         duration_minutes=appt.duration_minutes or SLOT_MINUTES,
@@ -617,7 +621,9 @@ def update_appointment(
         appt.status_reason = None
 
     patient_name = appt.patient.user.name
-    doctor_name = _doctor_label(appt.doctor.name)
+    doctor_name = _doctor_label(
+        appt.doctor.name if appt.doctor is not None else appt.doctor_name
+    )
     when = _when_label(appt.scheduled_at)
 
     # ---- notifications (same transaction; committed with the change) ----

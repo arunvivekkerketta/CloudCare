@@ -11,9 +11,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Review, User, UserRole
+from app.models import DoctorShift, Review, User, UserRole
 from app.schemas import DoctorPublic, DoctorShiftOut, SlotInfo
-from app.scheduling import generate_day_slots, serialize_slots, shift_windows
+from app.scheduling import DEFAULT_SHIFTS, generate_day_slots, serialize_slots
 
 router = APIRouter(prefix="/api/doctors", tags=["doctors"])
 
@@ -34,11 +34,30 @@ def list_doctors(db: Session = Depends(get_db)):
         db.query(Review.doctor_id, func.avg(Review.rating)).group_by(Review.doctor_id).all()
     )
 
+    # One query for every doctor's shifts instead of one query per doctor.
+    shift_rows = (
+        db.query(DoctorShift)
+        .filter(
+            DoctorShift.doctor_id.in_([d.id for d in doctors]),
+            DoctorShift.is_active.is_(True),
+        )
+        .order_by(DoctorShift.start_time)
+        .all()
+    )
+    shifts_by_doctor: dict = {}
+    for row in shift_rows:
+        shifts_by_doctor.setdefault(row.doctor_id, []).append(
+            (row.name, row.start_time, row.end_time)
+        )
+
     result: list[DoctorPublic] = []
     for d in doctors:
+        windows = shifts_by_doctor.get(d.id) or [
+            (name, start, end) for name, (start, end) in DEFAULT_SHIFTS.items()
+        ]
         shifts = [
             DoctorShiftOut(name=name, start=s.strftime("%H:%M"), end=e.strftime("%H:%M"))
-            for name, s, e in shift_windows(db, d)
+            for name, s, e in windows
         ]
         count = int(counts.get(d.id, 0))
         avg = float(averages[d.id]) if d.id in averages else None

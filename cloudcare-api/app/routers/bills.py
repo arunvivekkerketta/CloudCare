@@ -1,7 +1,7 @@
 """Billing routes. Patients read only their own bills."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit import record_audit
@@ -44,6 +44,7 @@ def _own_patient(db: Session, user: User) -> Patient | None:
 
 @router.get("", response_model=list[BillResponse])
 def list_bills(
+    response: Response,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -60,6 +61,7 @@ def list_bills(
         query = query.filter(Bill.patient_id == patient.id)
 
     total = query.count()
+    response.headers["X-Total-Count"] = str(total)
     rows = (
         query.order_by(Bill.created_at.desc())
         .offset((page - 1) * page_size)

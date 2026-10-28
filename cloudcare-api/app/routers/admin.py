@@ -75,6 +75,46 @@ def _admin_count(db: Session) -> int:
     )
 
 
+def _purge_doctor_appointments(db: Session, doctor: User) -> tuple[int, int]:
+    """Cancel live visits and preserve completed history for a leaving doctor.
+
+    Returns (cancelled, kept_completed). Every affected patient is notified.
+    Completed rows keep a name snapshot and lose the account reference, so
+    the visit remains in the patient's history after the doctor is deleted.
+    """
+    cancelled = 0
+    kept = 0
+    rows = (
+        db.query(Appointment)
+        .filter(Appointment.doctor_id == doctor.id)
+        .all()
+    )
+    for appt in rows:
+        if appt.status in ACTIVE_STATUSES:
+            appt.status = "Cancelled"
+            appt.status_reason = "Doctor left the clinic"
+            cancelled += 1
+            when = to_clinic(appt.scheduled_at).strftime("%a %d %b, %H:%M")
+            notify(
+                db,
+                appt.patient.user_id,
+                f"Your appointment with {doctor_label(doctor.name)} on {when} "
+                f"was cancelled because the doctor is no longer at the clinic. "
+                f"Please book with another doctor.",
+            )
+
+        if appt.status == "Completed":
+            if not appt.doctor_name:
+                appt.doctor_name = doctor.name
+            appt.doctor_id = None
+            kept += 1
+        else:
+            # Cancelled/declined/expired rows have no clinical history to keep.
+            db.delete(appt)
+
+    return cancelled, kept
+
+
 def _get_doctor_or_404(db: Session, doctor_id: str) -> User:
     try:
         did = uuid.UUID(doctor_id)
@@ -298,10 +338,9 @@ def delete_user(
                 detail=f"This doctor still has {active} active appointment(s). "
                 "Use DELETE /api/admin/doctors/{id}?cancel=true instead.",
             )
-        # doctor_id is NOT NULL: remove their appointment rows explicitly
-        # (only Declined/Cancelled history remains at this point).
-        for appt in db.query(Appointment).filter(Appointment.doctor_id == user.id).all():
-            db.delete(appt)
+        # Keep completed visits in patient history; live rows are already
+        # prohibited above, and other terminal rows are removed.
+        _purge_doctor_appointments(db, user)
 
     # Explicit cleanup of dependent rows (SQLite leaves FK enforcement off,
     # so CASCADE would not fire): remove domain rows tied to the account.
@@ -383,29 +422,14 @@ def delete_doctor(
             },
         )
 
-    cancelled = 0
-    if active > 0:
-        rows = (
-            db.query(Appointment)
-            .filter(
-                Appointment.doctor_id == doctor.id,
-                Appointment.status.in_(ACTIVE_STATUSES),
-            )
-            .all()
-        )
-        for appt in rows:
-            appt.status = "Cancelled"
-            cancelled += 1
+    # Cancel live visits (notifying each patient) and keep completed visits
+    # in the patient's history with a name snapshot.
+    cancelled, kept = _purge_doctor_appointments(db, doctor)
 
     # Their calendar configuration dies with the account (always, not just
     # in the auto-cancel branch — SQLite FK cascades are off project-wide).
     db.query(DoctorShift).filter(DoctorShift.doctor_id == doctor.id).delete()
     db.query(DoctorLeave).filter(DoctorLeave.doctor_id == doctor.id).delete()
-
-    # Their appointment records go with the account: doctor_id is NOT NULL,
-    # and SQLAlchemy would otherwise try to nullify the FK on parent delete.
-    for appt in db.query(Appointment).filter(Appointment.doctor_id == doctor.id).all():
-        db.delete(appt)
 
     # Reviews they wrote or received go with the account (explicit deletes:
     # SQLite FK enforcement is left off project-wide, so ondelete=CASCADE is
@@ -423,7 +447,9 @@ def delete_doctor(
 
     detail_bits = [f"deleted doctor {doctor.email}"]
     if cancelled:
-        detail_bits.append(f"cancelled {cancelled} active appointment(s) and removed their records")
+        detail_bits.append(f"cancelled {cancelled} active appointment(s)")
+    if kept:
+        detail_bits.append(f"kept {kept} completed visit(s) in patient history")
     if assigned or unassigned:
         detail_bits.append(f"{assigned} patient record(s) now unassigned")
 

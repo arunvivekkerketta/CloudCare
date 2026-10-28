@@ -19,11 +19,15 @@ class Appointment(Base):
         ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
     )
-    doctor_id: Mapped[uuid.UUID] = mapped_column(
+    # NULL only after the doctor's account is removed: the completed visit
+    # keeps doctor_name below so the patient's history still reads correctly.
+    doctor_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
+    # Snapshot of the doctor's name for preserved completed visits.
+    doctor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     duration_minutes: Mapped[int] = mapped_column(nullable=False, default=30, server_default="30")
     department: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -43,7 +47,7 @@ class Appointment(Base):
         "Patient",
         back_populates="appointments",
     )
-    doctor: Mapped["User"] = relationship(
+    doctor: Mapped["User | None"] = relationship(
         "User",
         back_populates="appointments_as_doctor",
         foreign_keys=[doctor_id],

@@ -181,7 +181,8 @@ class AdminUserUpdate(BaseModel):
 class AdminUserResponse(UserResponse):
     department: str | None = None
     created_at: datetime | None = None
-    consultation_fee: Decimal | None = None
+    # JSON number for direct formatting in the admin console.
+    consultation_fee: float | None = None
 
 
 class AuditLogResponse(BaseModel):
@@ -312,7 +313,9 @@ class AppointmentResponse(BaseModel):
     id: str
     patient_id: str
     patient_name: str
-    doctor_id: str
+    # None once the doctor's account has been removed; doctor_name keeps the
+    # historical name for completed visits.
+    doctor_id: str | None
     doctor_name: str
     department: str
     scheduled_at: datetime
@@ -402,7 +405,8 @@ class BillResponse(BaseModel):
     patient_id: str
     patient_name: str
     description: str | None = None
-    amount: Decimal
+    # A JSON number, not a string: the frontend renders it with Intl.NumberFormat.
+    amount: float
     status: Literal["Pending", "Paid", "Overdue"]
     created_at: datetime
 
