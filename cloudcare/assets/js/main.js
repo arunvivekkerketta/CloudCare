@@ -36,12 +36,13 @@
   }
 
   function makeToggle(){
+    if(window.__ccThemeToggle) return window.__ccThemeToggle;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'theme-toggle';
     btn.innerHTML = '<span class="dot"></span><span class="label">Dark</span>';
-    // Keep a module-level handle: auth.js re-mounts the marketing nav's
-    // account menu and must re-attach the same toggle node afterwards.
+    // One node for the whole page. auth.js re-mounts the marketing nav's
+    // account menu and moves THIS node back; it never creates another.
     window.__ccThemeToggle = btn;
     btn.addEventListener('click', () => {
       apply(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
@@ -49,18 +50,27 @@
     return btn;
   }
 
+  function mountToggle(container){
+    const btn = makeToggle();
+    // Defensive: any toggle markup restored from cached innerHTML is removed,
+    // so there can never be two "Dark" buttons on one page.
+    document.querySelectorAll('.theme-toggle').forEach(el => {
+      if(el !== btn) el.remove();
+    });
+    const target = container || document.querySelector('.nav-cta') ||
+      document.querySelector('.dash-topbar > div:last-child');
+    if(target && !target.contains(btn)) target.prepend(btn);
+    return btn;
+  }
+  window.ccMountThemeToggle = mountToggle;
+
   // apply saved theme — or, with nothing saved, the OS preference (gate S21)
   const saved = localStorage.getItem(KEY);
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   apply(saved || (prefersDark ? 'dark' : 'light'), false);
 
-  // place a toggle in the marketing nav
-  const navCta = document.querySelector('.nav-cta');
-  if(navCta) navCta.prepend(makeToggle());
-
-  // place a toggle in the dashboard topbar
-  const topbarActions = document.querySelector('.dash-topbar > div:last-child');
-  if(topbarActions) topbarActions.prepend(makeToggle());
+  // one toggle: marketing nav on public pages, topbar on dashboards
+  mountToggle();
 
   // sync label if theme was just applied before toggles existed
   document.querySelectorAll('.theme-toggle .label').forEach(l => {

@@ -207,12 +207,16 @@ function ccInitPublicNav(){
   const navCta = document.querySelector('.nav-cta');
   if(!navCta) return;
 
-  /* remember the page's own signed-out CTA so we can always put it back */
+  /* Remember the page's own signed-out CTA so we can always put it back.
+     Detach the live toggle first: otherwise its markup is captured into the
+     cached HTML and restoring it creates a second "Dark" button. */
+  const existingToggle = navCta.querySelector('.theme-toggle');
+  if(existingToggle) existingToggle.remove();
   if(!navCta.dataset.ctaOriginal) navCta.dataset.ctaOriginal = navCta.innerHTML;
 
   const restoreSignedOutCta = () => {
     navCta.innerHTML = navCta.dataset.ctaOriginal;
-    if(window.__ccThemeToggle) navCta.prepend(window.__ccThemeToggle);
+    if(window.ccMountThemeToggle) window.ccMountThemeToggle(navCta);
     ccPaintHeroCtas(null);
   };
 
@@ -285,8 +289,8 @@ function ccPaintAccountMenu(user){
     </div>`;
 
   const menu = navCta.querySelector('.cc-account-menu');
-  /* Re-attach the theme toggle that innerHTML replacement removed. */
-  if(window.__ccThemeToggle) navCta.prepend(window.__ccThemeToggle);
+  /* Re-attach the one theme toggle that innerHTML replacement removed. */
+  if(window.ccMountThemeToggle) window.ccMountThemeToggle(navCta);
 
   const trigger = navCta.querySelector('.cc-account-trigger');
   trigger.addEventListener('click', () => {
