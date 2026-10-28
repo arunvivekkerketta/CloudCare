@@ -343,6 +343,17 @@ def create_appointment(
     if doctor is None or doctor.role != UserRole.doctor:
         raise HTTPException(status_code=404, detail="Doctor not found.")
 
+    doctor_department = (doctor.department or "").strip()
+    requested_department = (payload.department or "").strip()
+    if doctor_department and requested_department.lower() != doctor_department.lower():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"This doctor works in {doctor_department}. "
+                f"Please choose {doctor_department}."
+            ),
+        )
+
     patient = _own_patient(db, current_user)
     if patient is None:
         raise HTTPException(
