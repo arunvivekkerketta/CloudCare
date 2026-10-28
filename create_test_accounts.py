@@ -7,6 +7,7 @@ Put this file in  cloudcare-api/app/scripts/  and run from  cloudcare-api/ :
 Safe to run again: accounts that already exist are skipped (never overwritten).
 Uses whatever database your .env points to (SQLite by default in development).
 """
+from app.config import get_settings
 from app.database import SessionLocal, verify_database_connection
 from app.models import BillingDetail, Patient, Specialty, User, UserRole
 from app.security import hash_password
@@ -20,6 +21,11 @@ ACCOUNTS = [
 
 
 def main() -> None:
+    if get_settings().is_production:
+        raise SystemExit(
+            "Refusing to create demo accounts: ENV is production. "
+            "Use app.scripts.create_admin for a real administrator."
+        )
     verify_database_connection()
     db = SessionLocal()
     try:
