@@ -211,7 +211,7 @@ def test_patient_cannot_double_book_two_doctors(client, seeded_ids):
     first = _book(client, token, seeded_ids["doctor_id"], day, 10)
     assert first.status_code == 201, first.text
 
-    second = _book(client, token, other_id, day, 10)
+    second = _book(client, token, other_id, day, 10, department="Neurology")
     assert second.status_code == 409, second.text
     assert second.json()["detail"]["message"] == (
         "You already have an appointment at this time."

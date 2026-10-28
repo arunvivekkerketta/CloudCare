@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.audit import record_audit
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Appointment, Bill, Patient, User, UserRole
+from app.models import Appointment, Bill, InvoiceCounter, Patient, User, UserRole
 from app.notify import notify
 from app.schemas import (
     AppointmentCreate,
@@ -202,17 +202,42 @@ def _patient_has_overlap(
 
 
 def _next_invoice_no(db: Session) -> str:
-    """Sequential invoice numbers in the INV-#### shape the seed data uses."""
+    """Allocate the next invoice number under a row lock.
+
+    The counter row serializes concurrent completions on PostgreSQL (and
+    SQLite serializes write transactions itself), so two workers can never
+    hand out the same number. Existing bills above the counter are respected
+    during a rollout, keeping the sequence gap-free.
+    """
+    row = (
+        db.query(InvoiceCounter)
+        .filter(InvoiceCounter.name == "invoice_no")
+        .with_for_update()
+        .first()
+    )
+
     highest = 1000
     for (invoice_no,) in db.query(Bill.invoice_no).all():
         match = re.fullmatch(r"INV-(\d+)", invoice_no or "")
         if match:
             highest = max(highest, int(match.group(1)))
-    return f"INV-{highest + 1}"
+
+    current = max(row.value if row is not None else 1000, highest)
+    next_value = current + 1
+    if row is None:
+        db.add(InvoiceCounter(name="invoice_no", value=next_value))
+    else:
+        row.value = next_value
+    db.flush()
+    return f"INV-{next_value}"
 
 
 def _create_completion_bill(db: Session, appt: Appointment) -> Bill | None:
-    """Exactly one Pending bill per completed appointment (idempotent)."""
+    """Exactly one Pending bill per completed appointment (idempotent).
+
+    A unique-invoice collision is retried with the next number instead of
+    escaping as the slot-conflict handler's misleading message.
+    """
     if db.query(Bill).filter(Bill.appointment_id == appt.id).first() is not None:
         return None
     doctor = appt.doctor
@@ -222,15 +247,40 @@ def _create_completion_bill(db: Session, appt: Appointment) -> Bill | None:
         else Decimal("500.00")
     )
     day = to_clinic(appt.scheduled_at).strftime("%d %b %Y")
-    bill = Bill(
-        patient_id=appt.patient_id,
-        invoice_no=_next_invoice_no(db),
-        amount=amount,
-        status="Pending",
-        description=f"Consultation – {_doctor_label(doctor.name)} ({day})",
-        appointment_id=appt.id,
-    )
-    db.add(bill)
+
+    bill: Bill | None = None
+    for attempt in range(3):
+        try:
+            with db.begin_nested():
+                bill = Bill(
+                    patient_id=appt.patient_id,
+                    invoice_no=_next_invoice_no(db),
+                    amount=amount,
+                    status="Pending",
+                    description=(
+                        f"Consultation – {_doctor_label(doctor.name)} ({day})"
+                    ),
+                    appointment_id=appt.id,
+                )
+                db.add(bill)
+            break
+        except IntegrityError:
+            bill = None
+            if attempt == 2:
+                # Leave no half-applied completion behind: the appointment
+                # stays uncompleted until a bill number can be issued.
+                db.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "We could not issue an invoice number. "
+                        "Please try again."
+                    ),
+                ) from None
+            db.expire_all()
+
+    if bill is None:
+        return None
     notify(
         db,
         appt.patient.user_id,
@@ -631,8 +681,15 @@ def update_appointment(
     suggestion_date = to_clinic(appt.scheduled_at).date()
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
+        if "invoice_no" in str(getattr(exc, "orig", exc)):
+            # Never tell a patient their appointment time was taken when the
+            # real problem was issuing a bill number.
+            raise HTTPException(
+                status_code=409,
+                detail="We could not issue an invoice number. Please try again.",
+            ) from None
         raise HTTPException(
             status_code=409,
             detail={

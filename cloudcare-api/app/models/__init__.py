@@ -5,6 +5,7 @@ from app.models.billing_detail import BillingDetail
 from app.models.doctor_leave import DoctorLeave
 from app.models.doctor_shift import DoctorShift
 from app.models.inventory import InventoryItem, InventoryTransaction
+from app.models.invoice_counter import InvoiceCounter
 from app.models.notification import Notification
 from app.models.patient import Patient
 from app.models.review import Review
@@ -20,6 +21,7 @@ __all__ = [
     "DoctorShift",
     "InventoryItem",
     "InventoryTransaction",
+    "InvoiceCounter",
     "Notification",
     "Patient",
     "Review",
