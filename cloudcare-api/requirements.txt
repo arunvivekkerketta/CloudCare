@@ -14,3 +14,7 @@ argon2-cffi==23.1.0
 argon2-cffi-bindings==21.2.0
 slowapi==0.1.9
 tzdata==2024.2  # IANA tz database (Windows hosts ship none) for Asia/Kolkata
+
+# Redis storage for rate limits when RATE_LIMIT_STORAGE_URI is set and more
+# than one worker runs (the default one-worker deployment uses memory).
+redis==5.2.1

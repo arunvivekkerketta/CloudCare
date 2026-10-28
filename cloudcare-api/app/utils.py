@@ -1,6 +1,8 @@
 """Shared router helpers."""
+import ipaddress
 import uuid
 
+from app.config import get_settings
 from app.models import Patient, User
 
 
@@ -15,18 +17,52 @@ def serialize_user(user: User) -> dict:
     ).model_dump()
 
 
-def client_ip(request) -> str | None:
-    """The real client address.
+def _parse_trusted_networks() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    raw = get_settings().trusted_proxy_ips
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            continue
+    return networks
 
-    uvicorn's --proxy-headers flag (set in render.yaml / start.bat) rewrites
-    request.client from the trusted proxy chain, so this is already correct
-    behind Render. A raw X-Forwarded-For header sent by a client must never
-    be trusted — it would let anyone spoof another user's IP and dodge the
-    per-address rate limits.
+
+def _is_trusted_proxy(peer: str) -> bool:
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    return any(address in network for network in _parse_trusted_networks())
+
+
+def client_ip(request) -> str | None:
+    """The real client address, resistant to X-Forwarded-For spoofing.
+
+    The header is honoured only when the immediate peer is a configured
+    trusted proxy, and then only its RIGHTMOST entry is used: that is the hop
+    appended by our own proxy. Entries to the left came from the caller and
+    may be fabricated. Direct clients keep their socket address.
     """
-    if request.client:
-        return request.client.host
-    return None
+    peer = request.client.host if request.client else None
+    if not peer:
+        return None
+    if not _is_trusted_proxy(peer):
+        return peer
+
+    forwarded = request.headers.get("x-forwarded-for", "")
+    hops = [hop.strip() for hop in forwarded.split(",") if hop.strip()]
+    if not hops:
+        return peer
+    try:
+        return str(ipaddress.ip_address(hops[-1]))
+    except ValueError:
+        # A malformed rightmost hop is not a usable address; fall back to the
+        # proxy peer rather than trusting attacker-supplied text.
+        return peer
 
 
 def parse_uuid(value: str) -> uuid.UUID:

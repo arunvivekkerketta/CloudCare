@@ -20,7 +20,7 @@ from app.deps import (
 )
 from app.mailer import send_email
 from app.models import BillingDetail, Patient, User, UserRole
-from app.ratelimit import limiter
+from app.ratelimit import enforce_forgot_password_email_limit, limiter
 from app.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -375,6 +375,10 @@ def forgot_password(
     endpoint cannot be used to enumerate registered emails.
     """
     email = payload.email.lower()
+    # Per-address cap first: rotating source IPs must not multiply reset
+    # emails for one inbox. Applied before the lookup so unknown addresses
+    # behave identically.
+    enforce_forgot_password_email_limit(email)
     user = db.query(User).filter(func.lower(User.email) == email).first()
     if user is None:
         return {"message": NEUTRAL_RESET_MESSAGE}

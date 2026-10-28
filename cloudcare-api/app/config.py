@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     # the test suite so hundreds of register/login calls don't trip the caps.
     rate_limit_login: str = "10/minute"
     rate_limit_register: str = "20/hour"
+    # Shared limiter backend. "memory://" is correct for one worker; point
+    # this at Redis (for example redis://host:6379/0) when running several.
+    rate_limit_storage_uri: str = "memory://"
+
+    # Only these immediate peers may set X-Forwarded-For. Render's proxy
+    # connects over its private network; direct clients are never trusted.
+    trusted_proxy_ips: str = "127.0.0.1,::1"
 
     # Connection pool — deliberate values, not silent SQLAlchemy defaults.
     db_pool_size: int = 5

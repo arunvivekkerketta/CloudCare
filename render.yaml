@@ -11,9 +11,11 @@ services:
       pip install -r requirements.txt
     # Pre-deploy gate: migrate before the new code serves traffic.
     preDeployCommand: "alembic upgrade head"
-    # --forwarded-allow-ips="*" lets uvicorn worker trust Render's proxy and
-    # rewrite request.client, so rate limits see the real visitor IP.
-    startCommand: "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:$PORT --timeout 60 --forwarded-allow-ips=\"*\""
+    # One worker keeps slowapi's in-memory counters shared. For more workers,
+    # set RATE_LIMIT_STORAGE_URI to Redis. Never trust a wildcard forwarded
+    # header: TRUSTED_PROXY_IPS lets only Render's private-network proxy set
+    # it, and the app itself reads the rightmost forwarded address.
+    startCommand: "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:$PORT --timeout 60"
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -31,6 +33,9 @@ services:
         value: "https://cloudcare.netlify.app"   # ← change to your Netlify URL
       - key: DB_SSLMODE
         value: require
+      # Render's proxy reaches the service over its private network.
+      - key: TRUSTED_PROXY_IPS
+        value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
   - type: pgsql
     name: cloudcare-db
