@@ -723,6 +723,13 @@ html[data-theme="dark"] .slot-btn.selected small{ color:var(--teal-900); }
   .dash-body{ padding:24px 18px 50px; }
   .dash-topbar{ padding:18px; }
 }
+/* Compact list rows used by the patient overview (next 3 visits). */
+.appt-mini{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:11px 0; border-bottom:1px solid var(--cloud-100);
+}
+.appt-mini:last-of-type{ border-bottom:none; }
+
 /* Touch targets: every control is at least 44x44 on phones, tablets and
    coarse-pointer devices. Inline links become 44px-high flex boxes so they
    are easy to tap without changing the visual hierarchy. */

@@ -72,11 +72,12 @@
           <div class="stat-card"><h3 id="statBalance">—</h3><span class="stat-label">Outstanding balance</span></div>
         </div>
 
-        <div class="grid grid-2 mt-24">
-          <div class="panel">
-            <div class="panel-head"><h3>Upcoming appointment</h3></div>
-            <div class="panel-body" id="upcomingApptCard" style="color:var(--slate-400);text-align:center;padding:18px 0;font-size:.85rem;">Loading your next appointment…</div>
+        <div class="panel mt-24">
+          <div class="panel-head">
+            <h3>Next 3 upcoming appointments</h3>
+            <a href="#panel-appointments" data-panel-link="appointments" class="btn btn-ghost btn-sm">View all appointments</a>
           </div>
+          <div class="panel-body" id="upcomingApptCard" style="color:var(--slate-400);text-align:center;padding:18px 0;font-size:.85rem;">Loading your next appointments…</div>
         </div>
       </section>
 
@@ -651,20 +652,20 @@ window.ccPollAppointments = async function(){
     ccRecordStatuses(appts);
   } catch(err){ /* the table shows its own error state */ }
 };
-/* gate C4: "upcoming" = earliest FUTURE Requested/Confirmed appointment.
-   Past and Cancelled/Declined rows can never win this filter. */
-window.ccPickUpcoming = function(appts){
+/* One rule for the overview count, the list and the next-visit stat:
+   future Requested/Confirmed appointments, earliest first. */
+window.ccUpcomingAppointments = function(appts){
   const nowMs = Date.now();
   return (appts || [])
     .filter(a => a.status === 'Requested' || a.status === 'Confirmed')
     .filter(a => new Date(a.scheduled_at).getTime() >= nowMs)
-    .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at))[0] || null;
+    .sort((x, y) => new Date(x.scheduled_at) - new Date(y.scheduled_at));
+};
+window.ccPickUpcoming = function(appts){
+  return window.ccUpcomingAppointments(appts)[0] || null;
 };
 window.ccCountUpcoming = function(appts){
-  const nowMs = Date.now();
-  return (appts || []).filter(a =>
-    (a.status === 'Requested' || a.status === 'Confirmed') &&
-    new Date(a.scheduled_at).getTime() >= nowMs).length;
+  return window.ccUpcomingAppointments(appts).length;
 };
 
 /* Visit badge (gates 15–17): "Visit: Next 2 days" — an appointment starting
@@ -834,10 +835,11 @@ window.ccMyAppointmentsLoad = async function(){
 window.ccRefreshUpcomingCard = async function(){
   try {
     const appts = await window.ccPatientAppointments();
-    const upcoming = window.ccPickUpcoming(appts);
+    const upcomingList = window.ccUpcomingAppointments(appts);
+    const upcoming = upcomingList[0] || null;
     window.ccUpcomingAppt = upcoming;
     const upcomingStat = document.getElementById('statUpcoming');
-    if(upcomingStat) upcomingStat.textContent = String(window.ccCountUpcoming(appts));
+    if(upcomingStat) upcomingStat.textContent = String(upcomingList.length);
     const nextStat = document.getElementById('statNextVisit');
     if(nextStat){
       nextStat.textContent = upcoming
@@ -852,31 +854,33 @@ window.ccRefreshUpcomingCard = async function(){
       } catch(e){ pastStat.textContent = '—'; }
     }
     const card = document.getElementById('upcomingApptCard');
-    if(upcoming && card){
-      const when = new Date(upcoming.scheduled_at).toLocaleString('en-IN', { weekday:'long', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+    if(upcomingList.length && card){
       card.removeAttribute('style');
-      card.dataset.doctor = upcoming.doctor_name;
-      card.dataset.dept = upcoming.department;
-      card.dataset.when = when;
-      card.dataset.mode = upcoming.mode;
-      card.innerHTML = `
-        <div class="flex items-center gap-12">
-          <div class="avatar-sm" style="width:46px;height:46px;font-size:1rem;">${ccEscape(upcoming.doctor_name.replace('Dr. ','').split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
+      card.innerHTML = upcomingList.slice(0, 3).map(a => {
+        const when = new Date(a.scheduled_at).toLocaleString('en-IN', { weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+        window.ccMyApptsById[a.id] = a;
+        return `<div class="appt-mini">
           <div>
-            <strong style="display:block;">${ccEscape(upcoming.doctor_name)} — ${ccEscape(upcoming.department)}</strong>
-            <span style="font-size:.85rem;color:var(--slate-500);" data-appt-when>${ccEscape(when)} · ${ccEscape(upcoming.mode)}</span>
+            <strong style="display:block;font-size:.9rem;">${ccEscape(a.doctor_name)} — ${ccEscape(a.department)}</strong>
+            <span style="font-size:.8rem;color:var(--slate-500);">${ccEscape(when)} · ${ccEscape(a.mode)}</span>
           </div>
-        </div>
-        <div class="flex gap-12 mt-24">
-          <button class="btn btn-ghost btn-sm" onclick="openRescheduleModal(window.ccUpcomingAppt)">Reschedule</button>
+          <span class="badge ${ccApptBadgeClass(a.status)}">${ccEscape(a.status)}</span>
         </div>`;
+      }).join('') + (upcomingList.length > 3
+        ? '<div class="mt-16"><a href="#panel-appointments" data-panel-link="appointments" class="auth-link" style="font-size:.82rem;">See all ' + upcomingList.length + ' upcoming appointments</a></div>'
+        : '');
       window.ccCurrentApptId = upcoming.id;
-      window.ccMyApptsById[upcoming.id] = upcoming;
     } else if(card){
       card.removeAttribute('style');
-      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming appointments</strong><span style="font-size:.82rem;color:var(--slate-400);">Nothing booked in the future — request one from the Book Appointment panel.</span></div>';
+      card.innerHTML = '<div style="text-align:center;padding:18px 0;"><strong style="display:block;">No upcoming visits.</strong><a href="#panel-book" data-panel-link="book" class="auth-link" style="font-size:.85rem;">Book an appointment</a></div>';
     }
-  } catch(err){ ccToast('Could not load your next appointment.'); }
+  } catch(err){
+    const card = document.getElementById('upcomingApptCard');
+    if(card){
+      card.removeAttribute('style');
+      card.innerHTML = '<div class="cc-state-error" style="text-align:center;padding:18px 0;"><strong style="display:block;">Could not load your upcoming visits.</strong><button type="button" class="btn btn-ghost btn-sm mt-8" onclick="ccRefreshUpcomingCard()">Try again</button></div>';
+    }
+  }
 };
 
 /* ---------------- API-driven panels ---------------- */
