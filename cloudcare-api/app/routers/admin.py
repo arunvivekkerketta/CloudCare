@@ -714,13 +714,23 @@ def create_doctor_leave(
     if payload.shift_name:
         windows = {name: (start, end) for name, start, end in shift_windows(db, doctor)}
         window = windows.get(payload.shift_name)
-        if window is not None:
-            shift_start, shift_end = window
-            booked = [
-                appt
-                for appt in booked
-                if shift_start <= to_clinic(appt.scheduled_at).time() < shift_end
-            ]
+        if window is None:
+            available = ", ".join(windows) or "none"
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{doctor_label(doctor.name)} does not work the "
+                    f"{payload.shift_name} shift. Available shifts: {available}."
+                ),
+            )
+        # A shift leave touches only that shift's appointments; the other
+        # shift and any whole-day bookings outside it stay untouched.
+        shift_start, shift_end = window
+        booked = [
+            appt
+            for appt in booked
+            if shift_start <= to_clinic(appt.scheduled_at).time() < shift_end
+        ]
 
     display_name = doctor_label(doctor.name)
     for appt in booked:
