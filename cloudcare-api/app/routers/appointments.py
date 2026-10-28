@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.audit import record_audit
 from app.database import get_db
 from app.deps import get_current_user
+from app.expiry import expire_stale_appointments
 from app.models import Appointment, Bill, InvoiceCounter, Patient, User, UserRole
 from app.notify import notify
 from app.schemas import (
@@ -152,26 +153,9 @@ def _slot_conflict(
     return False
 
 
-def _expire_stale(db: Session) -> None:
-    """A Requested appointment whose start has passed can never be confirmed."""
-    now = datetime.now(timezone.utc)
-    stale = (
-        db.query(Appointment)
-        .filter(Appointment.status == "Requested", Appointment.scheduled_at < now)
-        .all()
-    )
-    for appt in stale:
-        appt.status = "Expired"
-        appt.status_reason = "Not confirmed before the appointment time"
-        notify(
-            db,
-            appt.patient.user_id,
-            f"Your appointment with {_doctor_label(appt.doctor.name)} on "
-            f"{_when_label(appt.scheduled_at)} has expired because it was not "
-            f"confirmed. Please book another slot.",
-        )
-    if stale:
-        db.commit()
+def _sweep_stale_appointments(db: Session = Depends(get_db)) -> None:
+    """Before-request sweep: no list handler performs writes itself."""
+    expire_stale_appointments(db)
 
 
 def _patient_has_overlap(
@@ -299,12 +283,10 @@ def list_appointments(
     scope: str = Query("all", pattern="^(all|upcoming|past)$"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _sweep: None = Depends(_sweep_stale_appointments),
 ):
     if current_user.role not in READ_ROLES:
         raise HTTPException(status_code=403, detail="Not permitted.")
-
-    # Anything still Requested after its start time has silently expired.
-    _expire_stale(db)
 
     query = _visible_appointments(db, current_user)
     if status_filter:
