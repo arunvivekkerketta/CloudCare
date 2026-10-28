@@ -5,10 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
-from app.main import app
-
 API_DIR = Path(__file__).resolve().parents[1]
 
 
@@ -34,8 +30,17 @@ def test_app_imports_when_agent_folder_is_absent():
     assert "imported" in result.stdout
 
 
-def test_health_risk_routes_return_503_when_agent_is_absent():
-    client = TestClient(app)
+def test_health_risk_routes_return_503_when_agent_is_absent(monkeypatch, client):
+    """Point the module at no agent and every route must answer 503 first."""
+    from app.routers import health_risk
+
+    monkeypatch.setattr(health_risk, "_ai_agents_dir", None)
+    monkeypatch.setattr(health_risk, "_ai_agents_root", None)
+    monkeypatch.setattr(health_risk, "_ai_agents_app", None)
+    monkeypatch.setattr(health_risk, "_agent", None)
+    monkeypatch.setattr(health_risk, "_agent_loaded", False)
+    monkeypatch.setattr(health_risk, "_agent_failed", False)
+
     for method, path, body in [
         ("get", "/api/health-risk/presets", None),
         ("get", "/api/health-risk/health", None),

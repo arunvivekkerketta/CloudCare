@@ -11,6 +11,6 @@ const CC_API_URL = CC_IS_LOCAL ? 'http://127.0.0.1:8000' : PRODUCTION_API_URL;
 /* Payment instructions shown by "Pay now" — edit the UPI id for your clinic. */
 const CC_PAYMENT_INSTRUCTIONS = 'Pay at the clinic reception or by UPI to cloudcare@upi. Your invoice is marked Paid by the clinic after payment.';
 
-/* Modules that are not connected to a backend yet. A false flag hides the
-   matching dashboard panels instead of showing invented data. */
-const CC_FEATURES = { prescriptions: false, records: false, risk: false };
+/* Module switches. A false flag hides a dashboard panel that has no backend
+   yet; Health risk is live because the bundled model is connected. */
+const CC_FEATURES = { prescriptions: false, records: false, risk: true };

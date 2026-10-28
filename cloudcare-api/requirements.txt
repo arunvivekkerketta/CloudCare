@@ -18,3 +18,14 @@ tzdata==2024.2  # IANA tz database (Windows hosts ship none) for Asia/Kolkata
 # Redis storage for rate limits when RATE_LIMIT_STORAGE_URI is set and more
 # than one worker runs (the default one-worker deployment uses memory).
 redis==5.2.1
+
+# Patient Health Risk agent (bundled in agents/patient_health_risk).
+# The models are joblib artifacts trained with scikit-learn.
+joblib==1.6.0
+numpy==2.5.4
+pandas==3.0.6
+scikit-learn==1.9.1
+
+# Optional tracing of the health-risk consultation (app/tracing.py). Inert
+# unless RESPAN_API_KEY is set, and it never routes model calls anywhere.
+respan-ai==4.2.4

@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     # Base URL used in emailed links (the static frontend).
     frontend_url: str = "http://localhost:5500"
 
+    # --- Respan tracing (optional) -----------------------------------------
+    # Server-side key for the optional Respan tracing of the health-risk
+    # consultation workflow. Empty means tracing is off: the API behaves
+    # exactly as before and sends no telemetry anywhere.
+    respan_api_key: str | None = None
+
     @property
     def is_production(self) -> bool:
         return self.env.strip().lower() in {"production", "prod"}

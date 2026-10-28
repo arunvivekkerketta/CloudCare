@@ -39,6 +39,7 @@ from app.routers import (
     patients,
     reviews,
 )
+from app.tracing import flush_tracing, init_tracing
 
 settings = get_settings()
 
@@ -56,8 +57,11 @@ logger = logging.getLogger("cloudcare")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Optional Respan tracing: a no-op unless RESPAN_API_KEY is configured.
+    init_tracing()
     verify_database_connection()
     yield
+    flush_tracing()
 
 
 docs_url = "/docs" if not settings.is_production else None

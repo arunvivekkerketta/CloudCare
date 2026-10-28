@@ -37,7 +37,7 @@
       <a data-panel="records" href="#panel-records"><span class="ic">📋</span><span class="lbl">Health Records</span></a>
       <a data-panel="prescriptions" href="#panel-prescriptions"><span class="ic">💊</span><span class="lbl">Prescriptions</span></a>
       <a data-panel="telemedicine" href="#panel-telemedicine"><span class="ic">🎥</span><span class="lbl">Telemedicine</span></a>
-      <a data-panel="risk" href="#panel-risk"><span class="ic">❤️</span><span class="lbl">My Risk Score</span></a>
+      <a data-panel="risk" href="#panel-risk"><span class="ic">❤️</span><span class="lbl">Health risk</span></a>
       <a data-panel="billing" href="#panel-billing"><span class="ic">💳</span><span class="lbl">Billing</span></a>
       <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
     </nav>
@@ -173,12 +173,216 @@
       </section>
 
       <section class="panel-view" id="panel-risk">
-        <div class="ai-card coral">
-          <span class="ai-tag">AI Health Risk</span>
-          <!-- gate C5: no invented "68% — Elevated"; the score is written by
-               ccLoadPatientDashboard from /api/patients/me, or stays "—". -->
-          <h3 style="font-size:2rem;" id="riskScoreHeading">—</h3>
-          <p>Your score is recalculated by the AI risk agent from your own records after every visit.</p>
+        <div class="ai-card coral cc-assistant-hero">
+          <span class="ai-tag">Patient Health Risk</span>
+          <h3>Health risk check</h3>
+          <p>Enter your latest readings to see an estimate of your risk for type 2 diabetes, heart disease, kidney disease and stroke. The estimate is a screening guide, not a diagnosis.</p>
+          <p class="cc-assistant-note">Your result is saved to your health record so your care team can see it. Only you and your care team can see these numbers.</p>
+          <p class="cc-assistant-note" id="riskScoreHeading">Last saved score: —</p>
+        </div>
+
+        <div class="cc-assistant-layout">
+          <div class="panel">
+            <div class="panel-head"><h3>Your readings</h3><span class="badge badge-slate">About 2 minutes</span></div>
+            <div class="panel-body">
+              <form id="healthRiskForm" class="cc-assistant-form" novalidate>
+                <p class="form-error" data-form-error role="alert" hidden></p>
+
+                <section>
+                  <h4 class="cc-form-section-title">About you</h4>
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrAge">Age (years)</label>
+                      <input id="hrAge" name="age" type="number" inputmode="numeric" min="1" max="120" step="1" placeholder="e.g. 42" required>
+                    </div>
+                    <div class="field">
+                      <label for="hrSex">Sex at birth</label>
+                      <select id="hrSex" name="sex" required>
+                        <option value="">Choose one</option>
+                        <option value="0">Female</option>
+                        <option value="1">Male</option>
+                      </select>
+                      <p class="field-hint">The risk models were trained with these two categories.</p>
+                    </div>
+                  </div>
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrHeight">Height (cm)</label>
+                      <input id="hrHeight" name="height_cm" type="number" inputmode="decimal" min="100" max="250" step="0.1" placeholder="e.g. 170" required>
+                    </div>
+                    <div class="field">
+                      <label for="hrWeight">Weight (kg)</label>
+                      <input id="hrWeight" name="weight_kg" type="number" inputmode="decimal" min="20" max="300" step="0.1" placeholder="e.g. 72" required>
+                    </div>
+                  </div>
+                  <p class="cc-form-note" id="hrBmiPreview">Your body mass index (BMI) will appear here as you type.</p>
+                </section>
+
+                <section>
+                  <h4 class="cc-form-section-title">Blood pressure and waist</h4>
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrSystolic">Systolic pressure (mmHg)</label>
+                      <input id="hrSystolic" name="systolic_bp" type="number" inputmode="numeric" min="60" max="260" step="1" placeholder="e.g. 120" required>
+                      <p class="field-hint">The top number of your blood pressure reading.</p>
+                    </div>
+                    <div class="field">
+                      <label for="hrDiastolic">Diastolic pressure (mmHg)</label>
+                      <input id="hrDiastolic" name="diastolic_bp" type="number" inputmode="numeric" min="40" max="160" step="1" placeholder="e.g. 80" required>
+                      <p class="field-hint">The bottom number of your blood pressure reading.</p>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="hrWaist">Waist (cm)</label>
+                    <input id="hrWaist" name="waist_circumference" type="number" inputmode="decimal" min="40" max="200" step="0.1" placeholder="e.g. 84" required>
+                    <p class="field-hint">Measure around your waist, just above the hip bone.</p>
+                  </div>
+                </section>
+
+                <section>
+                  <h4 class="cc-form-section-title">Recent blood test</h4>
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrTotalChol">Total cholesterol (mg/dL)</label>
+                      <input id="hrTotalChol" name="total_cholesterol" type="number" inputmode="numeric" min="80" max="500" step="1" placeholder="e.g. 180" required>
+                    </div>
+                    <div class="field">
+                      <label for="hrHdl">HDL cholesterol (mg/dL)</label>
+                      <input id="hrHdl" name="hdl_cholesterol" type="number" inputmode="numeric" min="10" max="150" step="1" placeholder="e.g. 50" required>
+                    </div>
+                    <div class="field">
+                      <label for="hrLdl">LDL cholesterol (mg/dL)</label>
+                      <input id="hrLdl" name="ldl_cholesterol" type="number" inputmode="numeric" min="20" max="350" step="1" placeholder="e.g. 100" required>
+                    </div>
+                    <div class="field">
+                      <label for="hrFasting">Fasting blood sugar (mg/dL)</label>
+                      <input id="hrFasting" name="fasting_glucose" type="number" inputmode="numeric" min="40" max="450" step="1" placeholder="e.g. 90" required>
+                    </div>
+                  </div>
+                  <p class="field-hint">Use the numbers from your latest blood test. If you do not have them, ask your doctor or clinic before using this check.</p>
+                </section>
+
+                <details class="cc-details">
+                  <summary>Add more details (optional)</summary>
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrTriglycerides">Triglycerides (mg/dL)</label>
+                      <input id="hrTriglycerides" name="triglycerides" type="number" inputmode="numeric" min="30" max="1000" step="1" placeholder="e.g. 120">
+                    </div>
+                    <div class="field">
+                      <label for="hrHba1c">HbA1c (%)</label>
+                      <input id="hrHba1c" name="hba1c" type="number" inputmode="decimal" min="3.5" max="18" step="0.1" placeholder="e.g. 5.4">
+                    </div>
+                    <div class="field">
+                      <label for="hrCreatinine">Creatinine (mg/dL)</label>
+                      <input id="hrCreatinine" name="creatinine" type="number" inputmode="decimal" min="0.2" max="15" step="0.1" placeholder="e.g. 0.9">
+                    </div>
+                    <div class="field">
+                      <label for="hrEgfr">eGFR (mL/min)</label>
+                      <input id="hrEgfr" name="egfr" type="number" inputmode="numeric" min="5" max="180" step="1" placeholder="e.g. 95">
+                    </div>
+                    <div class="field">
+                      <label for="hrRestingHr">Resting heart rate (bpm)</label>
+                      <input id="hrRestingHr" name="resting_heart_rate" type="number" inputmode="numeric" min="30" max="200" step="1" placeholder="e.g. 70">
+                    </div>
+                    <div class="field">
+                      <label for="hrSpo2">Blood oxygen, SpO2 (%)</label>
+                      <input id="hrSpo2" name="spo2" type="number" inputmode="numeric" min="50" max="100" step="1" placeholder="e.g. 98">
+                    </div>
+                  </div>
+
+                  <div class="cc-form-two">
+                    <div class="field">
+                      <label for="hrSmoker">Smoking</label>
+                      <select id="hrSmoker" name="smoker">
+                        <option value="0">I do not smoke</option>
+                        <option value="1">I smoke now</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hrAlcohol">Alcohol</label>
+                      <select id="hrAlcohol" name="alcohol_use">
+                        <option value="0">None or rarely</option>
+                        <option value="1">Regularly or heavily</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hrActivity">Physical activity</label>
+                      <select id="hrActivity" name="physical_activity_score">
+                        <option value="0">Mostly sitting</option>
+                        <option value="1">Light activity</option>
+                        <option value="2" selected>Moderate activity</option>
+                        <option value="3">Very active</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hrDiet">Diet quality</label>
+                      <select id="hrDiet" name="diet_quality">
+                        <option value="0">Poor</option>
+                        <option value="1">Fair</option>
+                        <option value="2" selected>Good</option>
+                        <option value="3">Excellent</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hrStress">Ongoing stress</label>
+                      <select id="hrStress" name="stress_level">
+                        <option value="0">None</option>
+                        <option value="1" selected>Mild</option>
+                        <option value="2">Moderate</option>
+                        <option value="3">Severe</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hrSleep">Sleep each night (hours)</label>
+                      <input id="hrSleep" name="sleep_hours" type="number" inputmode="decimal" min="2" max="16" step="0.5" placeholder="e.g. 7">
+                    </div>
+                  </div>
+
+                  <h4 class="cc-form-section-title">Family history</h4>
+                  <div class="cc-check-grid">
+                    <label class="cc-check"><input type="checkbox" id="hrFamDiabetes"> Diabetes</label>
+                    <label class="cc-check"><input type="checkbox" id="hrFamHeart"> Heart disease</label>
+                    <label class="cc-check"><input type="checkbox" id="hrFamKidney"> Kidney disease</label>
+                    <label class="cc-check"><input type="checkbox" id="hrFamStroke"> Stroke</label>
+                  </div>
+
+                  <h4 class="cc-form-section-title" style="margin-top:18px;">Current medicines</h4>
+                  <div class="cc-check-grid">
+                    <label class="cc-check"><input type="checkbox" id="hrMedBp"> Blood pressure medicine</label>
+                    <label class="cc-check"><input type="checkbox" id="hrMedStatin"> Statin</label>
+                    <label class="cc-check"><input type="checkbox" id="hrMedDiabetes"> Diabetes medicine</label>
+                  </div>
+                </details>
+
+                <div class="cc-form-actions">
+                  <button class="btn btn-primary" type="submit" id="healthRiskSubmit">Check my risk</button>
+                  <button class="btn btn-ghost" type="button" id="healthRiskReset">Clear form</button>
+                  <span class="field-hint">Nothing is sent until you press Check my risk.</span>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel cc-result-panel" id="healthRiskResult" aria-live="polite">
+            <div class="panel-head"><h3>Your result</h3><span class="badge badge-slate" id="healthRiskResultBadge">Not checked yet</span></div>
+            <div class="panel-body">
+              <div class="cc-result-empty">
+                <div class="card-icon" style="margin:0 auto 14px;">❤️</div>
+                <strong style="display:block;color:var(--ink);margin-bottom:6px;">Your result will appear here</strong>
+                Fill in your readings and choose <strong>Check my risk</strong>. If you are unsure about a number, ask your clinic before you start.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel mt-24">
+          <div class="panel-head"><h3>How this check works</h3><span class="badge badge-slate">Screening estimate</span></div>
+          <div class="panel-body">
+            <p style="margin:0 0 10px;font-size:.86rem;color:var(--slate-500);">The check compares your readings with patterns learned from patient records. It estimates four risks: type 2 diabetes, heart disease, chronic kidney disease and stroke. It does not diagnose you and it does not replace a doctor's assessment.</p>
+            <p style="margin:0;font-size:.86rem;color:var(--slate-500);">If your result is moderate or high, book an appointment and take your latest test results with you. If you feel unwell now, contact the clinic or emergency services instead of waiting.</p>
+            <div class="cc-disclaimer">Your result is saved to your health record as a whole-number score. Your doctor can discuss what it means for you.</div>
+          </div>
         </div>
       </section>
 
@@ -270,6 +474,7 @@
 <script src="assets/js/main.js"></script>
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/notifications.js"></script>
+<script src="assets/js/health-risk.js"></script>
 <script>ccGuardDashboard('patient').then(user => {
   if(!user) return;
   window.ccLoadPatientDashboard(user);
@@ -847,7 +1052,9 @@ window.ccMyAppointmentsLoad = async function(){
 
 /* Feature flags: keep the markup, hide modules with no backend yet. */
 (function ccApplyFeatureFlags(){
-  const flags = window.CC_FEATURES || {};
+  /* config.js declares CC_FEATURES with `const`, so it is a script-scope
+     binding, not a window property. Read the binding directly. */
+  const flags = typeof CC_FEATURES !== 'undefined' ? CC_FEATURES : {};
   ['records', 'prescriptions', 'risk'].forEach(name => {
     if(flags[name]) return;
     document.querySelectorAll(`.side-nav a[data-panel="${name}"], #panel-${name}`).forEach(el => {
@@ -948,10 +1155,10 @@ window.ccLoadPatientDashboard = async function(user){
       ageRow.appendChild(ageInput);
       emailInput.parentElement.after(ageRow);
     }
-    const riskCard = document.querySelector('#panel-risk .ai-card h3');
+    const riskCard = document.getElementById('riskScoreHeading');
     if(riskCard && profile.risk_score !== null && profile.risk_score !== undefined){
-      const level = profile.risk_score > 70 ? 'High' : profile.risk_score > 40 ? 'Moderate' : 'Low';
-      riskCard.textContent = `${profile.risk_score}% — ${level}`;
+      const level = profile.risk_score >= 35 ? 'High burden' : profile.risk_score >= 15 ? 'Moderate burden' : 'Low burden';
+      riskCard.textContent = `Last saved score: ${profile.risk_score}% — ${level}`;
     }
   } catch(err){ ccToast('Could not load your profile.'); }
 

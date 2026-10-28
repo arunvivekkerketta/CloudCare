@@ -20,6 +20,7 @@ from app.audit import record_audit
 from app.database import get_db
 from app.deps import require_roles
 from app.models import InventoryItem, InventoryTransaction, User, UserRole
+from app.smart_inventory import build_inventory_insights
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -480,6 +481,20 @@ def get_inventory_kpi(
             max(category_values, key=category_values.get) if category_values else None
         ),
     )
+
+
+@router.get("/insights")
+def get_inventory_insights(
+    current_user: User = Depends(require_roles(UserRole.admin)),
+    db: Session = Depends(get_db),
+):
+    """Smart Inventory Management System: forecasts and reorder drafts.
+
+    Admin-only. Reads the live stock table and audited stock movements; it
+    never edits stock, so a suggestion stays a suggestion until an admin
+    records the real movement.
+    """
+    return build_inventory_insights(db)
 
 
 @router.get("/analytics/categories", response_model=list[CategoryPerformance])

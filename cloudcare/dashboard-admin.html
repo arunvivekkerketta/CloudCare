@@ -43,6 +43,7 @@
       <a data-panel="appointments" href="#panel-appointments"><span class="ic">📅</span><span class="lbl">Appointments</span></a>
       <a data-panel="reviews" href="#panel-reviews"><span class="ic">⭐</span><span class="lbl">Reviews</span></a>
       <a data-panel="billing" href="#panel-billing"><span class="ic">💳</span><span class="lbl">Billing</span></a>
+      <a data-panel="inventory" href="#panel-inventory"><span class="ic">📦</span><span class="lbl">Inventory</span></a>
       <a data-panel="ai-console" href="#panel-ai-console"><span class="ic">🤖</span><span class="lbl">AI Agent Console</span></a>
       <a data-panel="reports" href="#panel-reports"><span class="ic">📈</span><span class="lbl">Reports</span></a>
       <a data-panel="profile" href="#panel-profile"><span class="ic">👤</span><span class="lbl">Profile</span></a>
@@ -109,14 +110,14 @@
             <!-- gate C5: the old "12 SKUs / 37 high-risk / ICU at 88%" numbers
                  were invented — until the agents ship, they honestly read "—". -->
             <div class="ai-card">
-              <span class="ai-tag">Inventory</span> <span class="badge badge-slate">Coming soon</span>
-              <h3 style="font-size:1.1rem;">—</h3>
-              <p style="font-size:.85rem;">Reorder drafts will appear here once the inventory agent is connected.</p>
+              <span class="ai-tag">Inventory</span> <span class="badge badge-slate" id="invOverviewBadge">Loading…</span>
+              <h3 style="font-size:1.1rem;" id="invOverviewValue">—</h3>
+              <p style="font-size:.85rem;" id="invOverviewNote">Reading the latest stock forecast…</p>
             </div>
             <div class="ai-card coral">
-              <span class="ai-tag">Health risk</span> <span class="badge badge-slate">Coming soon</span>
-              <h3 style="font-size:1.1rem;">—</h3>
-              <p style="font-size:.85rem;">Flagged patients will appear here once the risk agent is connected.</p>
+              <span class="ai-tag">Health risk</span> <span class="badge badge-mint">Patient tab</span>
+              <h3 style="font-size:1.1rem;">Available</h3>
+              <p style="font-size:.85rem;">Patients can run a health risk check from their own dashboard and save the result to their record.</p>
             </div>
             <div class="ai-card gold">
               <span class="ai-tag">Resource forecast</span> <span class="badge badge-slate">Coming soon</span>
@@ -293,6 +294,71 @@
         </div>
       </section>
 
+      <!-- ===== INVENTORY (Smart Inventory Management System) ===== -->
+      <section class="panel-view" id="panel-inventory">
+        <div class="ai-card gold cc-assistant-hero">
+          <span class="ai-tag">Smart Inventory Management System</span>
+          <span class="badge badge-slate cc-assistant-badge">Admin only</span>
+          <h3>Order the right stock at the right time</h3>
+          <p>This assistant reads your live stock levels and recorded stock movements, then forecasts the next 30 days. It drafts a reorder quantity and explains each suggestion in plain words.</p>
+          <p class="cc-assistant-note">Forecasts are a planning aid. Check them against supplier lead times and clinical needs before you order. Nothing is ordered automatically.</p>
+        </div>
+
+        <div class="grid grid-4 cc-inventory-stats">
+          <div class="stat-card"><h3 id="invKpiItems">—</h3><span class="stat-label">Stock items</span></div>
+          <div class="stat-card"><h3 id="invKpiValue">—</h3><span class="stat-label">Value on hand</span></div>
+          <div class="stat-card"><h3 id="invKpiLow">—</h3><span class="stat-label">At or below reorder level</span></div>
+          <div class="stat-card"><h3 id="invKpiExpiring">—</h3><span class="stat-label">Expired or expiring soon</span></div>
+        </div>
+
+        <div class="grid grid-2 mt-24" style="align-items:start;">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>What to order next</h3>
+              <span class="badge badge-slate" id="inventoryModelBadge">Loading…</span>
+            </div>
+            <div class="panel-body" id="inventoryRecommendations">
+              <div class="cc-empty-box">Loading the latest forecast…</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Expiring or expired stock</h3>
+              <button class="btn btn-ghost btn-sm" type="button" id="inventoryRefresh">Refresh</button>
+            </div>
+            <div class="panel-body" id="inventoryExpiring">
+              <div class="cc-empty-box">Checking expiry dates…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel mt-24 cc-inventory-table-wrap">
+          <div class="panel-head">
+            <div>
+              <h3>Stock items</h3>
+              <span class="cc-forecast-meta">Forecasts use the last 90 days of recorded stock use.</span>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" id="inventoryAddBtn">Add item</button>
+          </div>
+          <div class="panel-body" style="padding-top:0;">
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Item</th><th>In stock</th><th>Reorder at</th><th>Next 30 days</th><th>Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody id="inventoryTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel mt-24">
+          <div class="panel-head"><h3>How the forecast works</h3><span class="badge badge-slate">Explainable</span></div>
+          <div class="panel-body">
+            <p style="margin:0 0 10px;font-size:.86rem;color:var(--slate-500);">Every time you record stock used, received, returned or discarded, the assistant adds it to the item's history. With at least five days of recorded use in the last 30 days it fits a simple trend; with less history it uses the 30-day average. Each suggestion shows its confidence so you can judge it.</p>
+            <p style="margin:0;font-size:.86rem;color:var(--slate-500);">Status meanings: <strong>Reorder now</strong> means stock is at or below the reorder level, or will run out within a week. <strong>Use stock before expiry</strong> means use the oldest stock first. <strong>Monitor</strong> means stock is close to the line. <strong>Healthy</strong> means no action is needed today.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ===== SPECIALTIES ===== -->
       <section class="panel-view" id="panel-specialties">
         <div class="grid grid-2" style="align-items:start;">
@@ -336,8 +402,8 @@
         <div class="agent-view active" data-agent-view="inventory">
           <div class="grid grid-2">
             <div class="panel">
-              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-slate">Not connected</span></div>
-              <div class="panel-body"><div class="risk-row" style="padding:14px 0;"><span style="font-size:.85rem;color:var(--slate-400);">No forecast is invented — it appears here once the inventory agent has data.</span></div></div>
+              <div class="panel-head"><h3>Stock depletion forecast</h3><span class="badge badge-slate" id="inventoryForecastBadge">Loading…</span></div>
+              <div class="panel-body" id="inventoryForecastSummary"><div class="cc-empty-box">Reading the latest stock levels…</div></div>
             </div>
             <div class="panel">
               <div class="panel-head"><h3>Auto-drafted reorders</h3></div>
@@ -417,5 +483,6 @@
 <script>ccGuardDashboard('admin').then(user => { if(user) window.ccLoadAdminDashboard(); });</script>
 <script src="assets/js/dashboard-admin.js"></script>
 <script src="assets/js/dashboard-admin-ops.js"></script>
+<script src="assets/js/inventory-insights.js"></script>
 </body>
 </html>

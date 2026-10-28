@@ -1,0 +1,42 @@
+{
+  "diabetes_risk": {
+    "model": "logistic_regression",
+    "auc": 0.836,
+    "brier_score": 0.0668,
+    "decision_threshold": 0.18,
+    "precision": 0.342,
+    "recall": 0.5553,
+    "f1": 0.4233,
+    "positive_rate_train": 0.0903
+  },
+  "heart_disease_risk": {
+    "model": "logistic_balanced",
+    "auc": 0.8496,
+    "brier_score": 0.0676,
+    "decision_threshold": 0.19,
+    "precision": 0.3575,
+    "recall": 0.5872,
+    "f1": 0.4444,
+    "positive_rate_train": 0.094
+  },
+  "kidney_disease_risk": {
+    "model": "logistic_regression_l2",
+    "auc": 0.885,
+    "brier_score": 0.0878,
+    "decision_threshold": 0.24,
+    "precision": 0.4923,
+    "recall": 0.7096,
+    "f1": 0.5813,
+    "positive_rate_train": 0.1537
+  },
+  "stroke_risk": {
+    "model": "logistic_balanced",
+    "auc": 0.8796,
+    "brier_score": 0.0329,
+    "decision_threshold": 0.2,
+    "precision": 0.3381,
+    "recall": 0.4498,
+    "f1": 0.386,
+    "positive_rate_train": 0.0418
+  }
+}

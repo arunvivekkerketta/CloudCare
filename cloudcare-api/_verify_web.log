@@ -1,0 +1,11 @@
+127.0.0.1 - - [28/Oct/2026 13:20:43] "GET /dashboard-patient.html HTTP/1.1" 200 -
+127.0.0.1 - - [28/Oct/2026 13:20:43] "GET /dashboard-admin.html HTTP/1.1" 200 -
+127.0.0.1 - - [28/Oct/2026 13:22:08] "GET /dashboard-patient.html HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/css/style.css HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/api.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/config.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/main.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/auth.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/notifications.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /assets/js/health-risk.js HTTP/1.1" 200 -
+127.0.0.1 - - [28/Oct/2026 13:22:11] "GET /login.html HTTP/1.1" 304 -

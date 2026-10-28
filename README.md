@@ -47,6 +47,17 @@ netlify.toml      Netlify config (static site + security headers)
   `Declined`, `Cancelled`, `Expired`), with transitions validated server-side,
   stale requests auto-expired on read, and one invoice generated per
   completed visit.
+- **Patient Health Risk** — the patient dashboard's **Health risk** tab runs
+  the bundled multi-disease model (type 2 diabetes, heart disease, kidney
+  disease, stroke) on the patient's own readings. The result is explained in
+  plain language and the composite score is saved to the patient's record.
+  The model files ship in `cloudcare-api/agents/patient_health_risk/`, so the
+  feature works on Render without a separate service.
+- **Smart Inventory Management System** — an admin-only **Inventory** tab
+  forecasts the next 30 days from live stock levels and audited stock
+  movements, drafts reorder quantities, flags expired/expiring stock, and
+  explains every suggestion. Admins add items and record stock movements from
+  the same tab; nothing is ordered automatically.
 
 ## Local setup
 
@@ -112,6 +123,7 @@ All variables are documented in `cloudcare-api/.env.example`. Key ones:
 | `CORS_ORIGINS` | Comma-separated allow-list — never `*` |
 | `SMTP_HOST` · `SMTP_PORT` · `SMTP_USER` · `SMTP_PASSWORD` · `SMTP_FROM` | Password-reset email (STARTTLS). Unset = log only, never a silent failure |
 | `FRONTEND_URL` | Public frontend origin used inside emailed reset links |
+| `HEALTH_RISK_AGENT_DIR` | Optional path to a different `Patient Health Risk/AI Agents` folder. Leave unset to use the bundled models, or point it at a missing folder to disable the assistant (all `/api/health-risk` routes then return 503). |
 
 ## Deploy
 
@@ -140,6 +152,8 @@ All variables are documented in `cloudcare-api/.env.example`. Key ones:
 | `GET /api/patients` | doctor (assigned) · admin (all) |
 | `GET/POST/PATCH /api/appointments` | scoped per role |
 | `GET /api/bills` · `PATCH /api/bills/{id}` | patient (own) · staff (read) · admin (update) |
+| `POST /api/health-risk/predict` | patient (self) · admin |
+| `GET /api/inventory/insights` | admin (Smart Inventory forecasts) |
 | `POST/PATCH/DELETE /api/admin/users` | admin |
 | `GET /api/users/summary` · `GET /api/admin/audit-logs` | admin |
 | `GET /health` · `GET /health/db` | public |

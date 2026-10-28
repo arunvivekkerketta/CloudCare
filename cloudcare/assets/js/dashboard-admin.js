@@ -152,16 +152,13 @@ function ccComingSoon(title, note){
   return `<div class="risk-row" style="padding:14px 0;"><div><strong style="font-size:.9rem;">${title}</strong><span style="display:block;font-size:.78rem;color:var(--slate-400);">${note}</span></div></div>`;
 }
 
-/* ---------- AI console: inventory ---------- */
-document.getElementById('reorderList').innerHTML = ccComingSoon(
-  'Inventory AI coming soon',
-  'Reorder suggestions will appear here once the inventory module is connected.'
-);
+/* ---------- AI console: inventory ----------
+   Filled by inventory-insights.js from the live Smart Inventory forecast. */
 
 /* ---------- AI console: risk ---------- */
 document.getElementById('riskList').innerHTML = ccComingSoon(
-  'AI risk scoring coming soon',
-  'Patient risk rankings will appear here once the analytics module is connected.'
+  'Patient assessments are live',
+  'Each patient can run a Health risk check from their own dashboard. A clinic-wide risk ranking is not connected yet.'
 );
 
 /* ---------- AI console: resource forecast ---------- */

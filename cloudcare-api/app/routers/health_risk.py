@@ -18,10 +18,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_roles
-from app.models import UserRole
+from app.models import Patient, User, UserRole
+from app.tracing import current_trace_id, task, workflow
 
 logger = logging.getLogger("cloudcare.health_risk")
 
@@ -38,14 +40,19 @@ UNAVAILABLE_MESSAGE = "The health risk assistant is not available right now."
 
 def _candidate_dirs() -> list[Path]:
     configured = os.getenv("HEALTH_RISK_AGENT_DIR", "").strip()
-    candidates: list[Path] = []
     if configured:
-        candidates.append(Path(configured).expanduser())
-    # Only a folder committed inside this repository is discovered
-    # automatically; everything else must be opted into explicitly.
+        # An explicit path is authoritative: pointing it at a missing folder
+        # is how tests and operators disable the assistant.
+        return [Path(configured).expanduser()]
+
+    api_root = Path(__file__).resolve().parents[2]
     repo_root = Path(__file__).resolve().parents[3]
-    candidates.append(repo_root / "Patient Health Risk" / "AI Agents")
-    return candidates
+    return [
+        # The trained models shipped with the API (used by Render).
+        api_root / "agents" / "patient_health_risk",
+        # The original agent folder, when this checkout has it at the root.
+        repo_root / "Patient Health Risk" / "AI Agents",
+    ]
 
 
 def _find_agent_dir() -> Path | None:
@@ -224,6 +231,43 @@ def get_agent() -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Traced consultation workflow
+# ---------------------------------------------------------------------------
+# One /api/health-risk/chat request is this clinic's AI workflow: load the
+# agent, score the patient, compose the guideline answer. The Respan spans
+# below turn that request into one trace with a span per step. They are
+# pass-throughs unless RESPAN_API_KEY is configured (see app/tracing.py).
+
+
+@task(name="load_health_risk_agent")
+def _load_agent() -> Any:
+    return get_agent()
+
+
+@task(name="consultation_answer")
+def _consult(
+    agent: Any,
+    record: Dict[str, Any],
+    query: str,
+    chat_history: Optional[List[Dict[str, str]]],
+) -> Dict[str, Any]:
+    return agent.consult(patient=record, query=query, chat_history=chat_history)
+
+
+@workflow(name="clinical_consultation")
+def _run_consultation(
+    record: Dict[str, Any],
+    query: str,
+    chat_history: Optional[List[Dict[str, str]]],
+) -> Dict[str, Any]:
+    trace_id = current_trace_id()
+    if trace_id:
+        logger.info("Clinical consultation traced as Respan trace %s", trace_id)
+    agent = _load_agent()
+    return _consult(agent, record, query, chat_history)
+
+
+# ---------------------------------------------------------------------------
 # Clinical presets (benchmark patient profiles)
 # ---------------------------------------------------------------------------
 
@@ -308,14 +352,36 @@ def health_check():
 @router.post("/predict")
 def predict_risk(
     patient: PatientRiskRecord,
-    current_user: UserRole = Depends(require_roles(UserRole.admin)),
+    current_user: User = Depends(
+        require_roles(UserRole.patient, UserRole.admin)
+    ),
+    db: Session = Depends(get_db),
 ):
-    """Multi-disease probability, XAI attribution & lab anomaly audit."""
+    """Multi-disease probability, XAI attribution & lab anomaly audit.
+
+    Patients may assess themselves; the composite score is saved to their
+    own profile so the dashboard overview reflects the same result. Admins
+    may assess any set of measurements for a demonstration.
+    """
     try:
         record = patient.model_dump(exclude={"patient_id"}, exclude_none=True)
         report = get_agent().predict(record)
         if patient.patient_id:
             report["patient_id"] = patient.patient_id
+        if current_user.role == UserRole.patient:
+            profile = (
+                db.query(Patient)
+                .filter(Patient.user_id == current_user.id)
+                .first()
+            )
+            if profile is not None:
+                # Stored as a whole number so the existing overview card can
+                # render it without a second model call.
+                profile.risk_score = int(
+                    round(report["composite_score"]["cardiometabolic_burden_score"])
+                )
+                db.commit()
+                report["saved_to_profile"] = True
         return report
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -364,10 +430,10 @@ def clinical_consultation_chat(
     """Conversational Clinical AI Consultation Agent."""
     try:
         record = chat_req.patient.model_dump(exclude={"patient_id"}, exclude_none=True)
-        consult_result = get_agent().consult(
-            patient=record,
-            query=chat_req.query,
-            chat_history=chat_req.chat_history,
+        consult_result = _run_consultation(
+            record,
+            chat_req.query,
+            chat_req.chat_history,
         )
         if chat_req.patient.patient_id:
             consult_result["patient_id"] = chat_req.patient.patient_id

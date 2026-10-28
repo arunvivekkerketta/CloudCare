@@ -222,6 +222,22 @@ function ccRenderState(tbody, state, message, colspan){
   } else if(state === 'empty'){
     tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell">${ccEscape(message || 'Nothing here yet.')}</td></tr>`;
   } else if(state === 'error'){
-    tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell cc-state-error">${ccEscape(message || 'Something went wrong.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${span}" class="cc-state-cell cc-state-error"><span>${ccEscape(message || 'Something went wrong.')}</span><button type="button" class="btn btn-ghost btn-sm mt-8" data-cc-retry>Try again</button></td></tr>`;
   }
 }
+
+/* Pages register their table's loader once. The shared error row asks the
+   nearest tbody which loader to run; an unregistered table falls back to a
+   page reload rather than leaving a dead button. */
+window.ccRetryTables = window.ccRetryTables || {};
+function ccRegisterRetry(tableId, loader){
+  if(tableId && typeof loader === 'function') window.ccRetryTables[tableId] = loader;
+}
+document.addEventListener('click', (event) => {
+  const button = event.target && event.target.closest && event.target.closest('[data-cc-retry]');
+  if(!button) return;
+  const tbody = button.closest('tbody');
+  const loader = tbody && window.ccRetryTables[tbody.id];
+  if(typeof loader === 'function') loader();
+  else window.location.reload();
+});

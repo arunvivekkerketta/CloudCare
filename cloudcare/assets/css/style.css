@@ -319,6 +319,77 @@ a.card:hover, .card.hoverable:hover{ box-shadow:var(--shadow-md); transform:tran
 .ai-card h3{ font-size:1.15rem; }
 .ai-card p{ font-size:.88rem; margin-bottom:0; }
 
+/* ---------- AI assistant surfaces (health risk + smart inventory) ---------- */
+.cc-assistant-hero{ margin-bottom:24px; }
+.cc-assistant-hero h3{ font-size:1.35rem; }
+.cc-assistant-hero .cc-assistant-note{ margin-top:10px; font-size:.82rem; color:var(--slate-500); }
+.cc-assistant-badge{ margin-left:8px; }
+.cc-assistant-layout{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:24px; align-items:start; }
+.cc-assistant-form section{ border:0; padding:0; margin:0 0 18px; }
+.cc-form-section-title{ font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-400); margin:0 0 12px; }
+.cc-form-two{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+.cc-form-note{ font-size:.78rem; color:var(--slate-400); margin:-6px 0 16px; }
+.cc-details{ border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px; margin:6px 0 18px; }
+.cc-details summary{ cursor:pointer; font-weight:700; font-size:.84rem; color:var(--ink); }
+.cc-details[open] summary{ margin-bottom:14px; }
+.cc-check-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+.cc-check{ display:flex; gap:9px; align-items:flex-start; font-size:.84rem; color:var(--slate-500); }
+.cc-check input{ width:18px; height:18px; margin-top:2px; flex:none; }
+.cc-form-actions{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.cc-result-panel{ min-height:180px; }
+.cc-result-empty{ text-align:center; padding:28px 10px; color:var(--slate-400); font-size:.88rem; }
+.cc-score-wrap{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+.cc-score-ring{ width:82px; height:82px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--cloud-100); border:7px solid var(--mint-300); flex:none; }
+.cc-score-ring strong{ font-family:var(--font-display); font-size:1.45rem; line-height:1; }
+.cc-score-ring span{ font-size:.62rem; color:var(--slate-400); }
+.cc-score-copy strong{ display:block; font-size:1rem; }
+.cc-score-copy span{ display:block; font-size:.82rem; color:var(--slate-500); margin-top:4px; }
+.cc-risk-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cc-risk-card{ border:1px solid var(--line); border-radius:var(--radius-sm); padding:13px 14px; background:var(--cloud-50); }
+.cc-risk-card-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.cc-risk-card strong{ font-size:.86rem; }
+.cc-risk-card .cc-risk-value{ font-family:var(--font-display); font-size:1.25rem; margin-top:4px; display:block; }
+.cc-risk-card ul{ margin:8px 0 0; padding-left:16px; font-size:.76rem; color:var(--slate-500); }
+.cc-risk-card li{ margin-bottom:4px; }
+.cc-rec-list{ list-style:none; padding:0; margin:0; }
+.cc-rec-item{ padding:12px 0; border-bottom:1px solid var(--cloud-100); font-size:.84rem; color:var(--slate-500); }
+.cc-rec-item:last-child{ border-bottom:none; }
+.cc-rec-item strong{ display:block; color:var(--ink); font-size:.86rem; margin-bottom:3px; }
+.cc-rec-meta{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.cc-disclaimer{ margin-top:16px; padding:12px 14px; border-radius:var(--radius-sm); background:var(--cloud-100); font-size:.78rem; color:var(--slate-500); }
+.cc-inventory-stats{ margin-bottom:24px; }
+.cc-inventory-table-wrap{ margin-top:24px; }
+.cc-inventory-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.cc-inventory-name{ display:block; font-weight:700; }
+.cc-inventory-sub{ display:block; font-size:.74rem; color:var(--slate-400); font-family:var(--font-mono); }
+.cc-reason{ font-size:.8rem; color:var(--slate-500); max-width:340px; }
+.cc-inline-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.cc-inline-head h4{ margin:0; font-size:.95rem; }
+.cc-forecast-meta{ font-size:.76rem; color:var(--slate-400); }
+.cc-empty-box{ padding:18px 0; text-align:center; color:var(--slate-400); font-size:.84rem; }
+.cc-load-error{ padding:18px 0; text-align:center; color:#c9432c; font-size:.84rem; }
+.cc-load-error .btn{ margin-top:10px; }
+
+@media (max-width:980px){
+  .cc-assistant-layout{ grid-template-columns:1fr; }
+  /* The stock table becomes labelled cards on narrow screens, so it never
+     pushes the page sideways. The table markup stays the same. */
+  .cc-inventory-table-wrap thead{ display:none; }
+  .cc-inventory-table-wrap table, .cc-inventory-table-wrap tbody, .cc-inventory-table-wrap tr, #inventoryTable td{ display:block; width:100%; }
+  .cc-inventory-table-wrap tr{ padding:14px 0; border-bottom:1px solid var(--cloud-100); }
+  .cc-inventory-table-wrap tr:last-child{ border-bottom:none; }
+  #inventoryTable td{ border:none; padding:5px 0; font-size:.84rem; display:grid; grid-template-columns:112px minmax(0,1fr); gap:10px; align-items:center; }
+  #inventoryTable td::before{ content:attr(data-label); font-size:.68rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--slate-400); }
+  #inventoryTable td:first-child{ display:block; margin-bottom:4px; }
+  #inventoryTable td:first-child::before{ display:block; margin-bottom:3px; }
+  #inventoryTable .cc-inventory-actions{ justify-content:flex-start; }
+  #inventoryTable .btn{ min-height:44px; }
+}
+@media (max-width:560px){
+  .cc-form-two, .cc-risk-grid, .cc-check-grid{ grid-template-columns:1fr; }
+  .cc-score-ring{ width:70px; height:70px; }
+}
+
 /* ---------- avatars ---------- */
 .avatar,.avatar-sm{
   border-radius:50%; display:inline-flex; align-items:center; justify-content:center;

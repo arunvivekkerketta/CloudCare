@@ -1,0 +1,37 @@
+{
+  "feature_columns": [
+    "age",
+    "sex",
+    "bmi",
+    "systolic_bp",
+    "diastolic_bp",
+    "total_cholesterol",
+    "hdl_cholesterol",
+    "ldl_cholesterol",
+    "triglycerides",
+    "fasting_glucose",
+    "hba1c",
+    "creatinine",
+    "egfr",
+    "waist_circumference",
+    "smoker",
+    "alcohol_use",
+    "physical_activity_score",
+    "family_history_diabetes",
+    "family_history_heart",
+    "family_history_kidney",
+    "family_history_stroke"
+  ],
+  "target_columns": [
+    "diabetes_risk",
+    "heart_disease_risk",
+    "kidney_disease_risk",
+    "stroke_risk"
+  ],
+  "decision_thresholds": {
+    "diabetes_risk": 0.18,
+    "heart_disease_risk": 0.19,
+    "kidney_disease_risk": 0.24000000000000002,
+    "stroke_risk": 0.2
+  }
+}
