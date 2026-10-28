@@ -66,6 +66,15 @@ from app.utils import client_ip
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_roles(UserRole.admin))])
 
 
+def _admin_count(db: Session) -> int:
+    return int(
+        db.query(func.count(User.id))
+        .filter(User.role == UserRole.admin)
+        .scalar()
+        or 0
+    )
+
+
 def _get_doctor_or_404(db: Session, doctor_id: str) -> User:
     try:
         did = uuid.UUID(doctor_id)
@@ -182,21 +191,49 @@ def update_user(
 
     data = payload.model_dump(exclude_unset=True)
 
+    new_role = UserRole(data["role"]) if data.get("role") is not None else None
+
     # Gate 26: an admin can never change their own role — no exceptions.
     # (Demotion would instantly strip their authority mid-session;
     # promotion adds nothing but invites bugs. Another admin does it.)
-    if "role" in data and user.id == current_user.id:
+    if new_role is not None and user.id == current_user.id:
+        if user.role == UserRole.admin and new_role != UserRole.admin and _admin_count(db) <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "You cannot change your own role: this is the last admin "
+                    "account."
+                ),
+            )
         raise HTTPException(
             status_code=400,
             detail="You cannot change your own role.",
         )
 
+    # The clinic must always keep at least one admin who can sign in.
+    if new_role is not None:
+        if (
+            user.role == UserRole.admin
+            and new_role != UserRole.admin
+            and _admin_count(db) <= 1
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="You cannot remove the last admin account.",
+            )
+        data["role"] = new_role
+
+    role_changed = new_role is not None and new_role != user.role
     if "password" in data and data["password"]:
         user.hashed_password = hash_password(data.pop("password"))
         # An admin-set password revokes that user's existing sessions.
         user.token_version += 1
     for field, value in data.items():
         setattr(user, field, value)
+    if role_changed:
+        # A role change revokes every token issued under the old role, so a
+        # demoted account cannot keep acting with its previous authority.
+        user.token_version += 1
 
     record_audit(
         db,
@@ -218,17 +255,30 @@ def delete_user(
     current_user: User = Depends(require_roles(UserRole.admin)),
     db: Session = Depends(get_db),
 ):
-    if user_id == str(current_user.id):
-        raise HTTPException(status_code=400, detail="You cannot delete your own account.")
-
     try:
         user_uuid = uuid.UUID(user_id)
     except (ValueError, TypeError):
         raise HTTPException(status_code=404, detail="User not found.") from None
 
+    # Compare parsed ids: a differently-cased string is the same account.
+    if user_uuid == current_user.id:
+        detail = "You cannot delete your own account."
+        if current_user.role == UserRole.admin and _admin_count(db) <= 1:
+            detail = (
+                "You cannot delete your own account: this is the last admin "
+                "account."
+            )
+        raise HTTPException(status_code=400, detail=detail)
+
     user = db.get(User, user_uuid)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found.")
+
+    if user.role == UserRole.admin and _admin_count(db) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete the last admin account.",
+        )
 
     # A doctor with active appointments must go through the safe doctor
     # delete endpoint (which can auto-cancel); a plain user delete would
