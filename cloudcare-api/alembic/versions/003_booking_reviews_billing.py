@@ -143,17 +143,19 @@ def upgrade() -> None:
             )
         )
 
-    # Remap legacy statuses onto the four spec statuses. Anything unknown
+    # Remap legacy statuses onto the spec statuses. A completed visit keeps
+    # its Completed status: remapping it to Confirmed would erase history and
+    # could later generate a second consultation bill. Anything unknown
     # becomes Requested so no appointment is stranded outside the lifecycle.
     op.execute("UPDATE appointments SET status='Requested' WHERE status='Scheduled'")
     op.execute(
         "UPDATE appointments SET status='Confirmed' "
-        "WHERE status IN ('Waiting', 'Checked in', 'Completed')"
+        "WHERE status IN ('Waiting', 'Checked in')"
     )
     op.execute("UPDATE appointments SET status='Cancelled' WHERE status='Cancelled'")
     op.execute(
         "UPDATE appointments SET status='Requested' "
-        "WHERE status NOT IN ('Requested', 'Confirmed', 'Declined', 'Cancelled')"
+        "WHERE status NOT IN ('Requested', 'Confirmed', 'Declined', 'Cancelled', 'Completed')"
     )
 
     # Atomic double-booking guard: one active appointment per doctor+start.
@@ -178,26 +180,32 @@ def upgrade() -> None:
         )
 
     # --- seed data -----------------------------------------------------------
-    # Specialties from the departments already in use.
+    # Specialties from the departments already in use. DISTINCT must run on
+    # the department name alone: generating the id per row first makes every
+    # row distinct and inserts the same specialty once per doctor.
     op.execute(
         f"""
         INSERT INTO specialties (id, name)
-        SELECT DISTINCT {_id_expr()}, department FROM users
-        WHERE role = 'doctor' AND department IS NOT NULL AND department != ''
+        SELECT {_id_expr()}, d.department
+        FROM (
+            SELECT DISTINCT department FROM users
+            WHERE role = 'doctor' AND department IS NOT NULL AND department != ''
+        ) d
         """
     )
     # Default shifts (Morning 06:00-14:00, Evening 14:00-22:00) for every doctor.
+    # TRUE, not the integer 1: PostgreSQL rejects an integer for a boolean.
     op.execute(
         f"""
         INSERT INTO doctor_shifts (id, doctor_id, name, start_time, end_time, is_active)
-        SELECT {_id_expr()}, u.id, 'Morning', '06:00:00', '14:00:00', 1
+        SELECT {_id_expr()}, u.id, 'Morning', '06:00:00', '14:00:00', TRUE
         FROM users u WHERE u.role = 'doctor'
         """
     )
     op.execute(
         f"""
         INSERT INTO doctor_shifts (id, doctor_id, name, start_time, end_time, is_active)
-        SELECT {_id_expr()}, u.id, 'Evening', '14:00:00', '22:00:00', 1
+        SELECT {_id_expr()}, u.id, 'Evening', '14:00:00', '22:00:00', TRUE
         FROM users u WHERE u.role = 'doctor'
         """
     )
