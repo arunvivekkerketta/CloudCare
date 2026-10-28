@@ -146,6 +146,34 @@ function ccErrorMessage(body, fallback){
   return fallback;
 }
 
+/* ---------- inline form errors ---------- */
+/* Auth forms show one persistent message under the form, announced by
+   role="alert", and move focus to the field that needs attention. The old
+   brief toast alone disappeared before many people could read it. */
+function ccClearFormError(form){
+  const box = form && form.querySelector('[data-form-error]');
+  if(!box) return;
+  box.textContent = '';
+  box.hidden = true;
+  form.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
+}
+
+function ccShowFormError(form, message, field){
+  const box = form && form.querySelector('[data-form-error]');
+  if(!box) return;
+  box.textContent = message;
+  box.hidden = false;
+  form.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
+  if(field){
+    field.setAttribute('aria-invalid', 'true');
+    field.focus();
+  }
+  if(!form.dataset.formErrorBound){
+    form.dataset.formErrorBound = '1';
+    form.addEventListener('input', () => ccClearFormError(form));
+  }
+}
+
 /* ---------- list/table render states ---------- */
 /* gate C8: state rows are plain centred cells (class-driven, not inline
    styles) so the colspan spans every column and centres cleanly — the old

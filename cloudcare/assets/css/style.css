@@ -384,6 +384,13 @@ footer a:hover{ opacity:.7; }
 .field-label{ display:block; font-size:.82rem; font-weight:700; color:var(--ink); margin-bottom:7px; }
 /* gates C10/S6/S18: small helper copy under fields and beside disabled buttons */
 .field-hint{ font-size:.8rem; color:var(--slate-400); margin:0; }
+/* Inline, persistent form error under auth forms (announced via role=alert). */
+.form-error{
+  margin:14px 0 0; padding:11px 14px; font-size:.84rem; font-weight:600; line-height:1.45;
+  color:var(--ink); background:var(--coral-100);
+  border:1px solid var(--coral-500); border-left-width:4px; border-radius:var(--radius-sm);
+}
+.form-error[hidden]{ display:none !important; }
 .field input, .field select, .field textarea{
   width:100%; font-family:var(--font-body); font-size:.92rem; color:var(--slate-900);
   border:1.5px solid var(--line); border-radius:var(--radius-sm);

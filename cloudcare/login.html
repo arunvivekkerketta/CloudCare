@@ -44,7 +44,7 @@
     <h1 style="font-size:1.7rem;margin-top:14px;">Welcome back</h1>
     <p style="margin-bottom:26px;">Sign in to your dashboard.</p>
 
-    <form id="loginForm">
+    <form id="loginForm" novalidate>
       <div class="field">
         <label for="loginEmail">Email</label>
         <input id="loginEmail" type="email" placeholder="you@cloudcare.demo" autocomplete="email" required>
@@ -59,6 +59,7 @@
         <label for="loginRemember" style="margin:0;font-size:.85rem;font-weight:600;">Keep me signed in on this device</label>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+      <p class="form-error" id="loginError" data-form-error role="alert" hidden></p>
     </form>
 
     <p class="auth-switch">New to CloudCare? <a href="register.html">Create an account</a></p>

@@ -15,17 +15,59 @@ function ccSetSession(user){
   }));
 }
 
+/* One password rule for register, reset and change-password. The backend
+   also rejects the user's own email and a short common-password list; the
+   hint above each field states both before anyone types. */
+function ccPasswordRuleError(value){
+  if(value.length < 8 || value.length > 128 || !/[A-Za-z]/.test(value) || !/\d/.test(value)){
+    return 'Use at least 8 characters, including a letter and a number.';
+  }
+  return '';
+}
+
+function ccEmailRuleError(value){
+  if(!value) return 'Enter your email address.';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'That email address is missing something. Check it and try again.';
+  return '';
+}
+
+/* Shared by register.html and reset-password.html (both forms have novalidate
+   so the message can appear inline instead of as a browser bubble). */
+function ccValidateNewPassword(form, passwordInput, confirmInput){
+  const rule = ccPasswordRuleError(passwordInput.value);
+  if(rule){
+    ccShowFormError(form, rule, passwordInput);
+    return false;
+  }
+  if(confirmInput.value !== passwordInput.value){
+    ccShowFormError(form, 'Those passwords do not match. Please re-enter them.', confirmInput);
+    return false;
+  }
+  ccClearFormError(form);
+  return true;
+}
+
 function ccHandleLogin(formSel){
   const form = document.querySelector(formSel);
   if(!form) return;
+  const emailInput = document.getElementById('loginEmail');
   const passwordInput = document.getElementById('loginPassword');
   if(passwordInput) ccAttachPasswordToggle(passwordInput);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
+    const email = emailInput.value.trim();
+    const emailProblem = ccEmailRuleError(email);
+    if(emailProblem){
+      ccShowFormError(form, emailProblem, emailInput);
+      return;
+    }
+    if(!passwordInput.value){
+      ccShowFormError(form, 'Enter your password.', passwordInput);
+      return;
+    }
+    ccClearFormError(form);
     const remember = document.getElementById('loginRemember');
-    await ccSubmitLogin(form, { email, password, remember_me: !!(remember && remember.checked) });
+    await ccSubmitLogin(form, { email, password: passwordInput.value, remember_me: !!(remember && remember.checked) });
   });
 }
 
@@ -37,29 +79,24 @@ function ccHandleRegister(formSel){
   if(passwordInput) ccAttachPasswordToggle(passwordInput);
   if(confirmInput) ccAttachPasswordToggle(confirmInput);
 
-  /* Confirm-password mismatch validation (same pattern as the change-
-     password modal): invalid state clears as soon as the values match. */
-  function syncConfirmMatch(){
-    if(!confirmInput || !passwordInput) return;
-    confirmInput.setCustomValidity(
-      confirmInput.value && confirmInput.value !== passwordInput.value
-        ? "Passwords don't match"
-        : ''
-    );
-  }
-  if(passwordInput) passwordInput.addEventListener('input', syncConfirmMatch);
-  if(confirmInput) confirmInput.addEventListener('input', syncConfirmMatch);
+  const nameInput = document.getElementById('regName');
+  const emailInput = document.getElementById('regEmail');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    syncConfirmMatch();
-    if(!form.reportValidity()){
-      ccToast("Passwords don't match.");
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if(!name){
+      ccShowFormError(form, 'Enter your full name.', nameInput);
       return;
     }
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const password = document.getElementById('regPassword').value;
+    const emailProblem = ccEmailRuleError(email);
+    if(emailProblem){
+      ccShowFormError(form, emailProblem, emailInput);
+      return;
+    }
+    if(!ccValidateNewPassword(form, passwordInput, confirmInput)) return;
     await ccSubmitRegister(form, { name, email, password });
   });
 }
@@ -84,7 +121,13 @@ async function ccSubmitLogin(form, payload){
   } catch(error) {
     button.disabled = false;
     button.textContent = originalText;
-    ccToast(error.message || 'Unable to connect to CloudCare API.');
+    const message = error.status === 401
+      ? 'That email or password is not right. Try again, or reset your password.'
+      : error.status === 429
+        ? 'Too many attempts. Please wait a minute and try again.'
+        : (error.message || 'We could not sign you in. Check your connection and try again.');
+    const passwordInput = document.getElementById('loginPassword');
+    ccShowFormError(form, message, passwordInput);
   }
 }
 
@@ -100,7 +143,20 @@ async function ccSubmitRegister(form, payload){
   } catch(error) {
     button.disabled = false;
     button.textContent = originalText;
-    ccToast(error.message || 'Unable to connect to CloudCare API.');
+    const emailInput = document.getElementById('regEmail');
+    const passwordInput = document.getElementById('regPassword');
+    let message = error.message || 'We could not create your account. Check your connection and try again.';
+    let field = null;
+    if(error.status === 409){
+      message = 'An account with this email already exists. Try signing in instead.';
+      field = emailInput;
+    } else if(error.status === 422){
+      message = 'That password is too easy to guess. Use at least 8 characters with a letter and a number.';
+      field = passwordInput;
+    } else if(error.status === 429){
+      message = 'Too many attempts. Please wait a minute and try again.';
+    }
+    ccShowFormError(form, message, field);
   }
 }
 

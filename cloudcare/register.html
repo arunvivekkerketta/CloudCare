@@ -46,7 +46,7 @@
 
     <input type="hidden" id="regRole" value="patient">
 
-    <form id="registerForm">
+    <form id="registerForm" novalidate>
       <div class="field">
         <label for="regName">Full name</label>
         <input id="regName" type="text" placeholder="e.g. Alex Rao" autocomplete="name" required>
@@ -57,14 +57,15 @@
       </div>
       <div class="field">
         <label for="regPassword">Password</label>
-        <input id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password" minlength="8" maxlength="128" pattern=".*(?=.*[A-Za-z])(?=.*\d).*" title="At least 8 characters, including a letter and a number." required>
-        <span class="field-hint">At least 8 characters, including a letter and a number.</span>
+        <input id="regPassword" type="password" placeholder="••••••••" autocomplete="new-password" minlength="8" maxlength="128" pattern=".*(?=.*[A-Za-z])(?=.*\d).*" title="At least 8 characters, including a letter and a number." aria-describedby="regPasswordHelp" required>
+        <span class="field-hint" id="regPasswordHelp">Use at least 8 characters, including a letter and a number. Do not use your email address or a common password.</span>
       </div>
       <div class="field">
         <label for="regConfirmPassword">Confirm password</label>
         <input id="regConfirmPassword" type="password" placeholder="Re-enter your password" autocomplete="new-password" required>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      <p class="form-error" id="registerError" data-form-error role="alert" hidden></p>
     </form>
 
     <p class="auth-switch">Already have an account? <a href="login.html">Sign in</a></p>
