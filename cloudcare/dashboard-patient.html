@@ -683,7 +683,9 @@ window.ccRefreshVisitBadge = async function(){
     if(next){
       const local = new Date(next.scheduled_at).toLocaleString('en-IN', { weekday:'short', hour:'numeric', minute:'2-digit' });
       const mode = next.status === 'Confirmed' ? 'Confirmed' : 'Requested';
-      badge.textContent = `● Visit: Next 2 days — ${ccEscape(local)} (${mode})`; 
+      badge.textContent = `● Visit: Next 2 days — ${ccEscape(local)} (${mode})`;
+      badge.dataset.short = 'Visit soon';
+      badge.setAttribute('aria-label', `Visit soon: ${local} (${mode})`);
       badge.style.display = '';
       badge.hidden = false;
       badge.classList.toggle('badge-mint', true);

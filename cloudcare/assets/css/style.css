@@ -709,6 +709,18 @@ html[data-theme="dark"] .slot-btn.selected small{ color:var(--teal-900); }
   .dash-body{ padding:24px 18px 50px; }
   .dash-topbar{ padding:18px; }
 }
+@media (max-width: 600px){
+  /* The patient topbar was 406px wide on a 375px screen: let it wrap and
+     shorten the visit badge so nothing pushes past the viewport. */
+  .dash-topbar{ flex-wrap:wrap; align-items:flex-start; gap:10px; padding:14px; }
+  .dash-topbar > div:first-child{ min-width:0; flex:1 1 100%; }
+  .dash-topbar > div:last-child{ width:100%; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+  .dash-topbar h1{ font-size:1.2rem; }
+  .dash-topbar .sub{ font-size:.78rem; }
+  #visitBadge{ font-size:0; padding:5px 9px; }
+  #visitBadge::after{ content:attr(data-short); font-size:.7rem; }
+}
+
 @media (max-width: 720px){
   .grid-4,.grid-3{ grid-template-columns:1fr; }
   footer .container{ grid-template-columns:1fr; }
