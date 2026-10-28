@@ -723,6 +723,20 @@ html[data-theme="dark"] .slot-btn.selected small{ color:var(--teal-900); }
   .dash-body{ padding:24px 18px 50px; }
   .dash-topbar{ padding:18px; }
 }
+/* Touch targets: every control is at least 44x44 on phones, tablets and
+   coarse-pointer devices. Inline links become 44px-high flex boxes so they
+   are easy to tap without changing the visual hierarchy. */
+@media (max-width: 980px), (pointer: coarse){
+  a[href], button, input:not([type="hidden"]), select, textarea, [role="button"]{
+    min-height:44px;
+  }
+  a[href], button, [role="button"]{ min-width:44px; }
+  a[href]{ display:inline-flex; align-items:center; }
+  .nav-toggle{ width:44px; height:44px; justify-content:center; align-items:center; }
+  .theme-toggle{ min-width:44px; }
+  input[type="checkbox"], input[type="radio"]{ min-width:44px; min-height:44px; }
+}
+
 @media (max-width: 600px){
   /* The patient topbar was 406px wide on a 375px screen: let it wrap and
      shorten the visit badge so nothing pushes past the viewport. */
