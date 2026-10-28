@@ -61,7 +61,7 @@ from app.scheduling import (
     to_clinic,
 )
 from app.security import hash_password
-from app.utils import client_ip
+from app.utils import client_ip, doctor_label
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_roles(UserRole.admin))])
 
@@ -374,9 +374,9 @@ def delete_doctor(
             status_code=409,
             detail={
                 "message": (
-                    f"Dr. {doctor.name} still has {active} active appointment(s). "
-                    "Cancel them first, or retry with cancel=true to cancel "
-                    "them automatically."
+                    f"{doctor_label(doctor.name)} still has {active} active "
+                    "appointment(s). Cancel them first, or retry with "
+                    "cancel=true to cancel them automatically."
                 ),
                 "active_appointments": active,
                 "assigned_patients": assigned,
@@ -722,18 +722,14 @@ def create_doctor_leave(
                 if shift_start <= to_clinic(appt.scheduled_at).time() < shift_end
             ]
 
-    doctor_label = (
-        doctor.name
-        if doctor.name.lower().startswith("dr")
-        else f"Dr. {doctor.name}"
-    )
+    display_name = doctor_label(doctor.name)
     for appt in booked:
         appt.status = "Cancelled"
         appt.status_reason = "Doctor on leave"
         notify(
             db,
             appt.patient.user_id,
-            f"Your appointment with {doctor_label} on "
+            f"Your appointment with {display_name} on "
             f"{to_clinic(appt.scheduled_at).strftime('%a %d %b, %H:%M')} was "
             f"cancelled because the doctor is on leave. "
             f"Please book another slot.",

@@ -25,6 +25,7 @@ from app.schemas import (
     AppointmentResponse,
     AppointmentUpdate,
 )
+from app.utils import doctor_label
 from app.scheduling import (
     ACTIVE_STATUSES,
     SLOT_MINUTES,
@@ -65,8 +66,7 @@ DOCTOR_STATUS_ONLY_MESSAGE = "Doctors can only confirm, decline or complete appo
 
 def _doctor_label(name: str) -> str:
     """"Dr. X" once, even when the stored name already carries the title."""
-    name = (name or "").strip() or "your doctor"
-    return name if name.lower().startswith("dr") else f"Dr. {name}"
+    return doctor_label(name)
 
 
 def _when_label(value: datetime) -> str:

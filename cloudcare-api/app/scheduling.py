@@ -21,6 +21,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models import Appointment, DoctorLeave, DoctorShift, User
+from app.utils import doctor_label
 
 # Clinic timezone: Asia/Kolkata (IST, UTC+05:30, no DST). Windows Python has
 # no system tz database, so fall back to the exact fixed offset when the IANA
@@ -45,6 +46,7 @@ DEFAULT_SHIFTS: dict[str, tuple[time, time]] = {
 ACTIVE_STATUSES = ("Requested", "Confirmed")
 
 NIGHT_BLOCK_MESSAGE = "Appointments cannot be booked between 10:00 PM and 5:00 AM"
+LAST_START_MESSAGE = "The last appointment of the day starts at 9:30 PM."
 SLOT_TAKEN_MESSAGE = "This slot is no longer available"
 PAST_SLOT_MESSAGE = "Appointment time is in the past. Please choose a future slot."
 
@@ -101,10 +103,15 @@ def validate_booking_start(start_utc: datetime) -> datetime:
     start_c = to_clinic(start_utc)
     if start_c <= clinic_now():
         raise HTTPException(status_code=400, detail=PAST_SLOT_MESSAGE)
-    if start_c.time() < WINDOW_START or start_c.time() > LAST_START:
-        # Covers everything from 22:00 (and 21:31-21:59 non-aligned starts)
-        # through 04:59 — nothing bookable in that range, any doctor.
+    clock = start_c.time()
+    if clock < WINDOW_START or clock >= WINDOW_END:
+        # 00:00-04:59 and 22:00-23:59: the clinic is closed.
         raise HTTPException(status_code=400, detail=NIGHT_BLOCK_MESSAGE)
+    if clock > LAST_START:
+        # 21:31-21:59: the clinic is open, but the day's last start has
+        # passed. This is different from the overnight closure and needs a
+        # different, actionable message.
+        raise HTTPException(status_code=400, detail=LAST_START_MESSAGE)
     return start_c
 
 
@@ -127,7 +134,7 @@ def ensure_slot_in_shift(db: Session, doctor: User, start_c: datetime) -> str:
     if any(l.shift_name is None for l in leaves):
         raise HTTPException(
             status_code=400,
-            detail=f"Dr. {doctor.name} is on leave on this date.",
+            detail=f"{doctor_label(doctor.name)} is on leave on this date.",
         )
 
     for name, shift_start, shift_end in shift_windows(db, doctor):
@@ -136,8 +143,8 @@ def ensure_slot_in_shift(db: Session, doctor: User, start_c: datetime) -> str:
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        f"Dr. {doctor.name} is on leave during the {name} shift "
-                        f"on this date."
+                        f"{doctor_label(doctor.name)} is on leave during the "
+                        f"{name} shift on this date."
                     ),
                 )
             # Only the aligned 30-minute grid inside the shift is bookable:
@@ -163,8 +170,8 @@ def ensure_slot_in_shift(db: Session, doctor: User, start_c: datetime) -> str:
     raise HTTPException(
         status_code=400,
         detail=(
-            f"The selected time is outside Dr. {doctor.name}'s working hours "
-            f"({hours})."
+            f"The selected time is outside {doctor_label(doctor.name)}'s "
+            f"working hours ({hours})."
         ),
     )
 

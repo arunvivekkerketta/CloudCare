@@ -1,5 +1,6 @@
 """Shared router helpers."""
 import ipaddress
+import re
 import uuid
 
 from app.config import get_settings
@@ -76,7 +77,23 @@ def patient_for_user(db, user: User) -> Patient | None:
     return db.query(Patient).filter(Patient.user_id == user.id).first()
 
 
+def doctor_label(name: str | None) -> str:
+    """Return "Dr. Name" exactly once.
+
+    Stored names already carry the title ("Dr. Aakash Verma"), so they are
+    returned unchanged. Only an unadorned name gets the prefix; a name like
+    "Dravid" is not mistaken for a title.
+    """
+    cleaned = (name or "").strip() or "your doctor"
+    if re.match(r"^dr\.?\s", cleaned, flags=re.IGNORECASE) or cleaned.lower() in {
+        "dr",
+        "dr.",
+    }:
+        return cleaned
+    return f"Dr. {cleaned}"
+
+
 def doctor_display_name(user: User | None) -> str | None:
     if not user:
         return None
-    return user.name
+    return doctor_label(user.name)
