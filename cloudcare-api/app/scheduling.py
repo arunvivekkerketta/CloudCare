@@ -9,7 +9,9 @@ Definitions (project spec):
   leaves.
 - Booking window: a slot is bookable only if its start is >= 05:00 and its
   end is <= 22:00 (last start 21:30). Nothing can be booked from 22:00 to
-  05:00 for any doctor or specialty. Past slots are rejected.
+  05:00 for any doctor or specialty. A start between 21:31 and 21:59 is
+  explained with the dedicated last-appointment message, not the overnight
+  closure message. Past slots are rejected.
 - Free slot: inside the doctor's shift, inside the booking window, in the
   future, and with no appointment in status Requested or Confirmed.
   Declined and Cancelled appointments free the slot.
