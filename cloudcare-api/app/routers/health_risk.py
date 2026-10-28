@@ -8,93 +8,147 @@ Provides endpoints for:
 - Clinical consultation chat
 - SOAP note generation
 """
+import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ---------------------------------------------------------------------------
-# Locate and import the Patient Health Risk AI Agent
-# ---------------------------------------------------------------------------
-# The agent lives in the downloaded project tree. We need to temporarily
-# redirect Python's import system to find the AI Agents' "app" package.
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
+from pydantic import BaseModel, Field
 
-_ai_agents_dir = None
-for candidate in [
-    Path(__file__).resolve().parent.parent.parent.parent / "Patient Health Risk" / "AI Agents",
-    Path(__file__).resolve().parent.parent.parent.parent.parent / "Patient Health Risk" / "AI Agents",
-    Path(r"C:\Users\akerk\Downloads\Patient Health Risk\AI Agents"),
-]:
-    if candidate.exists() and (candidate / "app" / "agent.py").exists():
-        _ai_agents_dir = candidate
-        break
-
-if _ai_agents_dir is None:
-    raise FileNotFoundError(
-        "Patient Health Risk AI Agents directory not found. "
-        f"Looked at: {Path(__file__).resolve().parent.parent.parent.parent / 'Patient Health Risk' / 'AI Agents'}"
-    )
-
-# Add AI Agents directories to sys.path BEFORE any CloudCare imports
-_ai_agents_root = str(_ai_agents_dir)
-_ai_agents_app = str(_ai_agents_dir / "app")
-
-# Insert at front so they take precedence
-if _ai_agents_root not in sys.path:
-    sys.path.insert(0, _ai_agents_root)
-if _ai_agents_app not in sys.path:
-    sys.path.insert(0, _ai_agents_app)
-
-# Now import CloudCare modules first (they need to be found via normal path)
 from app.database import get_db
 from app.deps import require_roles
 from app.models import UserRole
 
-# Lazy-load the agent to avoid import conflicts
-PatientHealthRiskAgent = None
-_agent_loaded = False
+logger = logging.getLogger("cloudcare.health_risk")
 
-def _ensure_agent_loaded():
-    global PatientHealthRiskAgent, _agent_loaded
-    if _agent_loaded:
+UNAVAILABLE_MESSAGE = "The health risk assistant is not available right now."
+
+# ---------------------------------------------------------------------------
+# Locate the optional Patient Health Risk AI Agent
+# ---------------------------------------------------------------------------
+# The agent is an optional external project, never part of this repository.
+# CloudCare must start without it: only the /api/health-risk routes become
+# unavailable (503). Set HEALTH_RISK_AGENT_DIR to the folder that contains
+# the agent's "app/agent.py" to enable them.
+
+
+def _candidate_dirs() -> list[Path]:
+    configured = os.getenv("HEALTH_RISK_AGENT_DIR", "").strip()
+    candidates: list[Path] = []
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    # Only a folder committed inside this repository is discovered
+    # automatically; everything else must be opted into explicitly.
+    repo_root = Path(__file__).resolve().parents[3]
+    candidates.append(repo_root / "Patient Health Risk" / "AI Agents")
+    return candidates
+
+
+def _find_agent_dir() -> Path | None:
+    for candidate in _candidate_dirs():
+        try:
+            if (candidate / "app" / "agent.py").is_file():
+                return candidate
+        except OSError:  # unreadable path: treat as absent, never crash startup
+            continue
+    return None
+
+
+_ai_agents_dir = _find_agent_dir()
+_ai_agents_root = str(_ai_agents_dir) if _ai_agents_dir else None
+_ai_agents_app = str(_ai_agents_dir / "app") if _ai_agents_dir else None
+
+# Lazy-loaded on first successful request.
+PatientHealthRiskAgent = None
+_agent: Any = None
+_agent_loaded = False
+_agent_failed = False
+
+
+def agent_available() -> bool:
+    """True when the optional agent folder was found at startup."""
+    return _ai_agents_dir is not None
+
+
+def _ensure_agent_loaded() -> None:
+    global PatientHealthRiskAgent, _agent_loaded, _agent_failed
+    if _agent_loaded or _agent_failed:
         return
-    
-    # Temporarily modify sys.path to load the agent from the correct location
+    if _ai_agents_root is None or _ai_agents_app is None:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE_MESSAGE)
+
+    # Temporarily modify sys.path to load the agent from its own tree.
     original_path = sys.path.copy()
+    cached: dict[str, Any] = {}
     try:
-        # Ensure AI Agents directories are at the front
         if _ai_agents_root not in sys.path:
             sys.path.insert(0, _ai_agents_root)
         if _ai_agents_app not in sys.path:
             sys.path.insert(0, _ai_agents_app)
-        
-        # Remove any cached app modules to force re-import from correct location
-        _app_modules = [k for k in sys.modules if k == 'app' or k.startswith('app.')]
-        _cached = {k: sys.modules.pop(k) for k in _app_modules}
-        
-        # Now import from the AI Agents' app package
+
+        # Remove cached CloudCare "app" modules to force the agent's package.
+        app_modules = [k for k in sys.modules if k == "app" or k.startswith("app.")]
+        cached = {k: sys.modules.pop(k) for k in app_modules}
+
         from app.agent import PatientHealthRiskAgent as PRA
+
         PatientHealthRiskAgent = PRA
-        
-        # Restore CloudCare's app modules
-        for k, v in _cached.items():
-            sys.modules[k] = v
-        
+    except Exception:  # noqa: BLE001 — a broken optional agent must not 500
+        _agent_failed = True
+        logger.warning(
+            "The health risk assistant could not be loaded from %s.",
+            _ai_agents_dir,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=503, detail=UNAVAILABLE_MESSAGE) from None
     finally:
-        # Restore original path
+        for name, module in cached.items():
+            sys.modules[name] = module
         sys.path = original_path
-    
+
     _agent_loaded = True
 
-# ---------------------------------------------------------------------------
-# FastAPI imports
-# ---------------------------------------------------------------------------
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+
+def _require_agent() -> None:
+    """Dependency gate for documentation and defence in depth."""
+    if not agent_available():
+        raise HTTPException(status_code=503, detail=UNAVAILABLE_MESSAGE)
+
+
+class _AgentRequiredRoute(APIRoute):
+    """Return the public 503 before auth/validation can answer first.
+
+    A router dependency runs only after OAuth2 middleware dependencies, so an
+    anonymous call would otherwise see 401. This guard runs at the very start
+    of the route and covers every method, valid body or not.
+    """
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def guarded(request):
+            if not agent_available():
+                return JSONResponse(
+                    status_code=503, content={"detail": UNAVAILABLE_MESSAGE}
+                )
+            return await handler(request)
+
+        return guarded
+
 
 # ---------------------------------------------------------------------------
 # Router setup
 # ---------------------------------------------------------------------------
-router = APIRouter(prefix="/api/health-risk", tags=["health-risk"])
+router = APIRouter(
+    prefix="/api/health-risk",
+    tags=["health-risk"],
+    dependencies=[Depends(_require_agent)],
+    route_class=_AgentRequiredRoute,
+)
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas
@@ -154,14 +208,18 @@ class TrajectoryRequest(BaseModel):
 # Agent singleton (lazy-loaded on first request)
 # ---------------------------------------------------------------------------
 
-_agent: Optional[PatientHealthRiskAgent] = None
 
-
-def get_agent() -> PatientHealthRiskAgent:
+def get_agent() -> Any:
     global _agent
     _ensure_agent_loaded()
     if _agent is None:
-        _agent = PatientHealthRiskAgent()
+        try:
+            _agent = PatientHealthRiskAgent()
+        except Exception:  # noqa: BLE001 — model assets may be missing
+            logger.warning("The health risk agent failed to start.", exc_info=True)
+            raise HTTPException(
+                status_code=503, detail=UNAVAILABLE_MESSAGE
+            ) from None
     return _agent
 
 
@@ -229,7 +287,9 @@ PRESETS = {
 # ---------------------------------------------------------------------------
 
 @router.get("/presets")
-def get_presets():
+def get_presets(
+    current_user: UserRole = Depends(require_roles(UserRole.admin)),
+):
     """Clinical benchmark patient presets for testing and demo."""
     return PRESETS
 
